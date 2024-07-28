@@ -8,7 +8,7 @@ from utils.utils import get_action_mask
 
 if __name__ == '__main__':
     seed = 42
-    env = tictactoe_v3.env(render_mode='human')  # 'human', 'rgb_array', 'ansi
+    env = tictactoe_v3.env(render_mode='human')  # 'human', 'rgb_array', 'ansi'
     env.reset(seed=seed)
 
     players = [RandomAgent(), ChooseFirstActionAgent()]
