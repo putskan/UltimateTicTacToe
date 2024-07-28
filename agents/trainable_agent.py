@@ -9,6 +9,10 @@ class TrainableAgent(Agent):
     """
     An agent that needs training (neural net, etc.)
     """
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.modules = []
+
     @abstractmethod
     def train_update(self, replay_buffer: ReplayBuffer) -> None:
         """
@@ -17,20 +21,22 @@ class TrainableAgent(Agent):
         """
         pass
 
-    @abstractmethod
     def eval(self) -> None:
         """
         change inner models to eval mode (for pyTorch neural nets)
         for example, should include lines such as self.model.train()
         https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval
         """
-        pass
+        assert len(self.modules) > 0, 'All trainable modules should be stored in self.modules'
+        for module in self.modules:
+            module.eval()
 
-    @abstractmethod
     def train(self) -> None:
         """
         change inner models to train mode (for pyTorch neural nets)
         for example, should include lines such as self.model.train()
         https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.train
         """
-        pass
+        assert len(self.modules) > 0, 'All trainable modules should be stored in self.modules'
+        for module in self.modules:
+            module.train()

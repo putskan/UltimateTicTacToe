@@ -1,3 +1,4 @@
 gymnasium
 pettingzoo[classic]
 tqdm
+torch
