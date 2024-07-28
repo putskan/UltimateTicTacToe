@@ -9,6 +9,13 @@ class Agent:
     """
     base class for all agents
     """
+    def __init__(self, agent_name: str = None):
+        """
+        initialize the agent
+        :param agent_name: name to display in str, repr
+        """
+        self.agent_name = agent_name
+
     @abstractmethod
     def play(self, env: AECEnv, obs: Any, curr_agent_str: str, action_mask: Optional[np.ndarray]) -> Any:
         """
@@ -44,7 +51,7 @@ class Agent:
         pass
 
     def __str__(self) -> str:
-        return self.__class__.__name__
+        return self.agent_name or self.__class__.__name__
 
     def __repr__(self) -> str:
-        return self.__class__.__name__
+        return self.agent_name or self.__class__.__name__
