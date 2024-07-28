@@ -37,7 +37,7 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
             if done:
                 action = None
             else:
-                action = curr_player.play(env, obs, curr_agent_str, action_mask)
+                action = curr_player.play(env, obs, curr_player_idx, curr_agent_str, action_mask)
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
 

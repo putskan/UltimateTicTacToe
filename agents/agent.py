@@ -17,10 +17,12 @@ class Agent:
         self.agent_name = agent_name
 
     @abstractmethod
-    def play(self, env: AECEnv, obs: Any, curr_agent_str: str, action_mask: Optional[np.ndarray]) -> Any:
+    def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
+             curr_agent_str: str, action_mask: Optional[np.ndarray]) -> Any:
         """
         :param env: the env (useful to get possible actions, etc.)
         :param obs: current observation
+        :param curr_agent_idx: current agent
         :param curr_agent_str: parameter of env.action_space. index of the current player
         :param action_mask: mask to apply to the actions, in order to get the valid ones
                 (For example, env.action_space(agent).sample(mask))

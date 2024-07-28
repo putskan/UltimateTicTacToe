@@ -22,7 +22,6 @@ class TrainableAgent(Agent):
         change inner models to eval mode (for pyTorch neural nets)
         for example, should include lines such as self.model.train()
         https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval
-
         """
         pass
 
