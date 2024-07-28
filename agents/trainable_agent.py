@@ -11,7 +11,7 @@ class TrainableAgent(Agent):
     """
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.modules = []
+        self.modules = []  # points to the agent's torch modules. add all modules to this list
 
     @abstractmethod
     def train_update(self, replay_buffer: ReplayBuffer) -> None:
