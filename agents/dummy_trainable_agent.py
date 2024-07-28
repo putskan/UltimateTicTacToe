@@ -8,7 +8,7 @@ from utils.replay_buffer import ReplayBuffer
 
 class DummyTrainableAgent(TrainableAgent):
     """
-    for testing purposes
+    for testing and demonstration purposes
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
