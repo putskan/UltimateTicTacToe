@@ -6,6 +6,9 @@ from pettingzoo import AECEnv
 
 
 class Agent:
+    """
+    base class for all agents
+    """
     @abstractmethod
     def play(self, env: AECEnv, obs: Any, curr_agent_str: str, action_mask: Optional[np.ndarray]) -> Any:
         """
@@ -23,9 +26,22 @@ class Agent:
         relevant for agents that train (neural networks).
         perform a train step/update.
         should not be called for non-trainable agents
-        :return: None
         """
         raise NotImplementedError
+
+    def eval(self) -> None:
+        """
+        change inner models to eval mode (for pyTorch neural nets)
+        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval
+        """
+        pass
+
+    def train(self) -> None:
+        """
+        change inner models to train mode (for pyTorch neural nets)
+        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval
+        """
+        pass
 
     def __str__(self) -> str:
         return self.__class__.__name__
