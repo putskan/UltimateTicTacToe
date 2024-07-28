@@ -39,7 +39,7 @@ class Agent:
     def train(self) -> None:
         """
         change inner models to train mode (for pyTorch neural nets)
-        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval
+        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.train
         """
         pass
 
