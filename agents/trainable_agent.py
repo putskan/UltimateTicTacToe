@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import Any
 
 from agents.agent import Agent
 from utils.replay_buffer import ReplayBuffer
