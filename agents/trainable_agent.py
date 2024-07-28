@@ -16,6 +16,7 @@ class TrainableAgent(Agent):
         """
         pass
 
+    @abstractmethod
     def eval(self) -> None:
         """
         change inner models to eval mode (for pyTorch neural nets)
@@ -25,6 +26,7 @@ class TrainableAgent(Agent):
         """
         pass
 
+    @abstractmethod
     def train(self) -> None:
         """
         change inner models to train mode (for pyTorch neural nets)
