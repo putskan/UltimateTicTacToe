@@ -2,6 +2,7 @@ from abc import abstractmethod
 from typing import Any
 
 from agents.agent import Agent
+from utils.replay_buffer import ReplayBuffer
 
 
 class TrainableAgent(Agent):
@@ -9,7 +10,7 @@ class TrainableAgent(Agent):
     An agent that needs training (neural net, etc.)
     """
     @abstractmethod
-    def train_update(self, replay_buffer: Any) -> None:
+    def train_update(self, replay_buffer: ReplayBuffer) -> None:
         """
         relevant for agents that train (neural networks).
         perform a train step/update.
