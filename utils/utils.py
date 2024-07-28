@@ -1,3 +1,8 @@
+from typing import Any, Optional
+
+import numpy as np
+
+
 def get_action_mask(observation: Any, info: Any) -> Optional[np.ndarray]:
     if 'action_mask' in info:
         return info['action_mask']
