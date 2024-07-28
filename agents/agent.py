@@ -28,28 +28,6 @@ class Agent:
         """
         pass
 
-    def train_update(self, replay_buffer: Any) -> None:
-        """
-        relevant for agents that train (neural networks).
-        perform a train step/update.
-        should not be called for non-trainable agents
-        """
-        raise NotImplementedError
-
-    def eval(self) -> None:
-        """
-        change inner models to eval mode (for pyTorch neural nets)
-        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval
-        """
-        pass
-
-    def train(self) -> None:
-        """
-        change inner models to train mode (for pyTorch neural nets)
-        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.train
-        """
-        pass
-
     def __str__(self) -> str:
         return self.agent_name or self.__class__.__name__
 
