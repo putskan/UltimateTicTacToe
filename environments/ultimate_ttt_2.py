@@ -38,7 +38,8 @@ class raw_env(AECEnv):
             zip(self.possible_agents, list(range(len(self.possible_agents))))
         )
 
-        self.action_spaces = {i: spaces.MultiDiscrete(self.board.board_shape)
+        n_actions = np.prod(self.board.board_shape)
+        self.action_spaces = {i: spaces.Discrete(n_actions)
                               for i in self.agents}
         # self.action_spaces = {i: spaces.Discrete(9) for i in self.agents}
         obs_shape = list(self.board.board_shape) + [2]
@@ -46,7 +47,7 @@ class raw_env(AECEnv):
             i: spaces.Dict(
                 {
                     "observation": spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.int8),
-                    "action_mask": spaces.Box(low=0, high=1, shape=self.board.board_shape, dtype=np.bool),
+                    "action_mask": spaces.Discrete(n_actions),
                 }
             )
             for i in self.agents
@@ -72,9 +73,15 @@ class raw_env(AECEnv):
         opp_p_board = np.equal(board_vals, opp_player + 1)
 
         observation = np.stack([cur_p_board, opp_p_board], axis=self.depth + 1).astype(np.int8)
-        legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
+        if agent != self.agent_selection:
+            assert np.any(list(self.terminations.values())), list(self.terminations.values())
 
-        action_mask = legal_moves.astype(np.bool)  # TODO: why int8 and not bool? remove?
+
+        # action_mask = legal_moves  # TODO: why int8 and not bool? remove?
+        # action_mask = np.ravel_multi_index(np.nonzero(legal_moves), self.board.board_shape)
+        legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
+        action_mask = legal_moves.flatten().astype(np.int8)
+
         return {"observation": observation, "action_mask": action_mask}
 
     def observation_space(self, agent):
@@ -98,8 +105,6 @@ class raw_env(AECEnv):
         legal_moves_mask = np.logical_and(legal_moves_mask, self.board.squares == 0)
         return legal_moves_mask
 
-
-
     def step(self, action):
         if (
             self.terminations[self.agent_selection]
@@ -108,6 +113,9 @@ class raw_env(AECEnv):
             return self._was_dead_step(action)
         # check if input action is a valid move (0 == empty spot)
         # assert self.board.squares[action] == 0, "played illegal move"
+        print(action)
+        action = np.unravel_index(action, self.board.board_shape)
+        print(action)
         assert self._legal_moves()[action], "played illegal move"  # TODO: faster implementation?
         # play turn
         self.board.play_turn(self.agents.index(self.agent_selection), action)
@@ -157,21 +165,20 @@ class raw_env(AECEnv):
         pass
 
     def render(self):
-        pass
+        print(self.board)
 
 
 if __name__ == '__main__':
-    environment = env(render_mode="human")
+    environment = env(render_mode="human", depth=1)
     environment.reset(seed=42)
-
     for agent in environment.agent_iter():
         observation, reward, termination, truncation, info = environment.last()
-
         if termination or truncation:
             action = None
         else:
-            # this is where you would insert your policy
-            action = environment.action_space(agent).sample()
+            action_mask = observation['action_mask']
+            action = environment.action_space(agent).sample(mask=action_mask)
 
         environment.step(action)
+
     environment.close()

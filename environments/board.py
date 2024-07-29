@@ -88,11 +88,12 @@ class Board:
         :return: the winner number
         """
         assert three_on_three_board.shape == (3, 3)
+        flattened_board = three_on_three_board.flatten().tolist()
         winner = -1
         for combination in self.winning_combinations:
             states = []
             for index in combination:
-                states.append(three_on_three_board[index])
+                states.append(flattened_board[index])
             if all(x == 1 for x in states):
                 winner = 1
             if all(x == 2 for x in states):
