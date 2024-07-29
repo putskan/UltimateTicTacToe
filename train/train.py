@@ -53,6 +53,7 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             observation, reward, termination, truncation, info = env.last()
             if players_last_decision[curr_player_idx] is not None:  # skip first one
                 players_last_decision[curr_player_idx]['next_observation'] = observation
+                players_last_decision[curr_player_idx]['reward'] = reward
                 replay_buffer.push(**players_last_decision[curr_player_idx])
 
             cumulative_rewards[curr_player_idx] += reward
@@ -66,7 +67,6 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
             players_last_decision[curr_player_idx] = dict(observation=observation,
-                                                          reward=reward,
                                                           done=done, action=action,
                                                           action_mask=action_mask,
                                                           curr_player_idx=curr_player_idx)
