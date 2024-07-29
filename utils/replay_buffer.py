@@ -36,3 +36,6 @@ class ReplayBuffer:
 
     def __str__(self) -> str:
         return str(self.queue)
+
+    def __len__(self):
+        return len(self.queue)
