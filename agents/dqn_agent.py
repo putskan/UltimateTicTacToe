@@ -7,6 +7,7 @@ import random
 from agents.trainable_agent import TrainableAgent
 from utils.replay_buffer import ReplayBuffer
 import torch.nn.functional as F
+import copy
 
 
 class DQN(nn.Module):
@@ -71,11 +72,6 @@ class DQNAgent(TrainableAgent):
 
         batch = replay_buffer.sample(self.batch_size)
 
-        # # Ensure all actions are valid before converting them to tensors
-        # valid_batch = [record for record in batch if record[1] is not None]
-        # if len(valid_batch) < self.batch_size:
-        #     return  # Not enough valid samples to proceed
-
         states, actions, rewards, next_states, dones, action_masks, curr_player_idxs = zip(*batch)
 
         states = torch.stack([torch.FloatTensor(state['observation']) for state in states]).to(self.device)
@@ -110,4 +106,4 @@ class DQNAgent(TrainableAgent):
         # Update target network periodically
         self.update_count += 1
         if self.update_count % self.target_update_freq == 0:
-            self.target_net.load_state_dict(self.policy_net.state_dict())
+            self.target_net.load_state_dict(copy.deepcopy(self.policy_net.state_dict()))
