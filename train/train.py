@@ -62,14 +62,14 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
                 action = None
             else:
                 action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
+                players_last_decision[curr_player_idx] = dict(observation=observation,
+                                                              reward=reward,
+                                                              done=done, action=action,
+                                                              action_mask=action_mask,
+                                                              curr_player_idx=curr_player_idx)
 
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
-            players_last_decision[curr_player_idx] = dict(observation=observation,
-                                                          reward=reward,
-                                                          done=done, action=action,
-                                                          action_mask=action_mask,
-                                                          curr_player_idx=curr_player_idx)
 
         if curr_game % train_every == 0:
             agent.train_update(replay_buffer)
