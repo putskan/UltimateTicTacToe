@@ -8,6 +8,8 @@ from tqdm import tqdm
 
 from agents.dummy_trainable_agent import DummyTrainableAgent
 from agents.trainable_agent import TrainableAgent
+from agents.dqn_agent import DQNAgent
+
 from utils.replay_buffer import ReplayBuffer
 from utils.utils import get_action_mask
 
@@ -81,6 +83,11 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
 
 
 if __name__ == '__main__':
-    agent = DummyTrainableAgent()
     env = tictactoe_v3.env(render_mode=None)
-    train(env, agent)
+    env.reset()
+
+    state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape # Adjust according to your observation space
+    action_size = env.action_space(env.agents[0]).n  # Adjust according to your action space
+    agent = DQNAgent(state_size=state_size, action_size=action_size)
+
+    train(env, agent, n_games=10000)

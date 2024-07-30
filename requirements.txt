@@ -1,4 +1,4 @@
-gymnasium
-pettingzoo[classic]
-tqdm
-torch
+gymnasium~=0.29.1
+pettingzoo[classic]~=1.24.3
+tqdm~=4.66.4
+torch~=2.4.0
