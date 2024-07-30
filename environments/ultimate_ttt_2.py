@@ -13,7 +13,8 @@ def env(render_mode: str = None, depth: int = 1) -> AECEnv:
     env = raw_env(render_mode=internal_render_mode, depth=depth)
     if render_mode == "ansi":
         env = wrappers.CaptureStdoutWrapper(env)
-    env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-1)
+    # TODO: uncomment
+    # env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-1)
     env = wrappers.AssertOutOfBoundsWrapper(env)
     env = wrappers.OrderEnforcingWrapper(env)
     return env
@@ -73,7 +74,7 @@ class raw_env(AECEnv):
         opp_p_board = np.equal(board_vals, opp_player + 1)
 
         observation = np.stack([cur_p_board, opp_p_board], axis=self.depth + 1).astype(np.int8)
-        if agent != self.agent_selection:
+        if agent != self.agent_selection:  # TODO: remove
             assert np.any(list(self.terminations.values())), list(self.terminations.values())
 
 
@@ -81,6 +82,9 @@ class raw_env(AECEnv):
         # action_mask = np.ravel_multi_index(np.nonzero(legal_moves), self.board.board_shape)
         legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
         action_mask = legal_moves.flatten().astype(np.int8)
+
+        if action_mask.sum() == 0:
+            raise Exception  # TODO: remove
 
         return {"observation": observation, "action_mask": action_mask}
 
@@ -101,7 +105,7 @@ class raw_env(AECEnv):
             return self.board.squares == 0
 
         legal_moves_mask = np.zeros_like(self.board.squares, dtype=np.bool)
-        legal_moves_mask[self.forced_boards[self.agent_name_mapping[self.agent_selection]]] = True
+        legal_moves_mask[*self.forced_boards] = True
         legal_moves_mask = np.logical_and(legal_moves_mask, self.board.squares == 0)
         return legal_moves_mask
 
@@ -116,9 +120,25 @@ class raw_env(AECEnv):
         print(action)
         action = np.unravel_index(action, self.board.board_shape)
         print(action)
-        assert self._legal_moves()[action], "played illegal move"  # TODO: faster implementation?
+        assert self._legal_moves()[action], "played illegal move"  # TODO: faster implementation? delete due to wrapper?
         # play turn
         self.board.play_turn(self.agents.index(self.agent_selection), action)
+
+        # TODO: move to function
+        len_ = len(self.forced_boards)  # TODO: delete
+        self.forced_boards = list(action)[2:]
+        assert len(self.forced_boards) == len_  # TODO: delete
+
+        for i in range(len(self.forced_boards), 0, -2):
+            sub_board_indices = self.forced_boards[:i]
+            if np.all(self.board.squares[*sub_board_indices] != 0):
+                # sub-game is finished
+                self.forced_boards[i - 1] = slice(None)
+                self.forced_boards[i - 2] = slice(None)
+            else:
+                break
+
+
         # self.forced_boards[self.agents[1 - self.agent_selection]] = None  # TODO: change
 
         # update infos
@@ -149,7 +169,7 @@ class raw_env(AECEnv):
     def reset(self, seed=None, options=None):
         # reset environment
         self.board = Board(self.depth)
-        self.forced_boards = [slice(None)] * (self.depth - 1)
+        self.forced_boards = [slice(None)] * 2 * (self.depth - 1)
         self.agents = self.possible_agents[:]
         self.rewards = {i: 0 for i in self.agents}
         self._cumulative_rewards = {i: 0 for i in self.agents}
@@ -169,7 +189,7 @@ class raw_env(AECEnv):
 
 
 if __name__ == '__main__':
-    environment = env(render_mode="human", depth=1)
+    environment = env(render_mode="human", depth=2)
     environment.reset(seed=42)
     for agent in environment.agent_iter():
         observation, reward, termination, truncation, info = environment.last()
@@ -178,6 +198,10 @@ if __name__ == '__main__':
         else:
             action_mask = observation['action_mask']
             action = environment.action_space(agent).sample(mask=action_mask)
+
+            if action_mask.sum() == 0:
+                # TODO: remove
+                raise Exception
 
         environment.step(action)
 
