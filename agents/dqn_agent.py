@@ -27,8 +27,9 @@ class DQN(nn.Module):
 
 
 class DQNAgent(TrainableAgent):
-    def __init__(self, state_size, action_size, hidden_size=64, learning_rate=0.001, gamma=0.99, epsilon=0.1,
-                 epsilon_decay=0.995, epsilon_min=0.01, batch_size=64, replay_buffer_size=10000, target_update_freq=10):
+    def __init__(self, state_size, action_size, hidden_size=64, learning_rate=1e-4, gamma=0.99, epsilon=0.1,
+                 epsilon_decay=0.995, epsilon_min=0.01, batch_size=64,
+                 replay_buffer_size=10000, tau=0.005):
         super().__init__()
         self.state_size = state_size
         self.action_size = action_size
@@ -40,18 +41,17 @@ class DQNAgent(TrainableAgent):
         self.epsilon_min = epsilon_min
         self.batch_size = batch_size
         self.replay_buffer = ReplayBuffer(replay_buffer_size)
-        self.target_update_freq = target_update_freq
+        self.tau = tau
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.update_count = 0  # Counter to track when to update the target network
 
         # Q-Networks
         self.policy_net = DQN(self.state_size, self.action_size).to(self.device)
         self.target_net = DQN(self.state_size, self.action_size).to(self.device)
-        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.target_net.load_state_dict(copy.deepcopy(self.policy_net.state_dict()))
         self.target_net.eval()
 
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.learning_rate)
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.SmoothL1Loss()
 
         self.modules.append(self.policy_net)
 
@@ -72,7 +72,7 @@ class DQNAgent(TrainableAgent):
 
         batch = replay_buffer.sample(self.batch_size)
 
-        states, actions, rewards, next_states, dones, action_masks, curr_player_idxs = zip(*batch)
+        states, actions, rewards, next_states, dones, action_masks, curr_player_idxs, next_action_mask = zip(*batch)
 
         states = torch.stack([torch.FloatTensor(state['observation']) for state in states]).to(self.device)
         next_states = torch.stack([torch.FloatTensor(next_state['observation']) for next_state in next_states]).to(
@@ -86,7 +86,9 @@ class DQNAgent(TrainableAgent):
 
         # Compute Q-values for next states using the target network
         with torch.no_grad():
-            next_q_values = self.target_net(next_states).max(1)[0]
+            next_action_mask_bool = np.array(next_action_mask).astype(bool)
+            all_next_q_values = np.ma.masked_array(self.target_net(next_states), next_action_mask_bool)
+            next_q_values = all_next_q_values.max(1)[0]
             target_q_values = rewards + (self.gamma * next_q_values * (1 - dones))
 
         # Compute loss
@@ -97,13 +99,16 @@ class DQNAgent(TrainableAgent):
         loss.backward()
         print(f"loss - ", loss.item())
 
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
 
         # Epsilon decay
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        # Update target network periodically
-        self.update_count += 1
-        if self.update_count % self.target_update_freq == 0:
-            self.target_net.load_state_dict(copy.deepcopy(self.policy_net.state_dict()))
+        target_net_state_dict = self.target_net.state_dict()
+        policy_net_state_dict = self.policy_net.state_dict()
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = (policy_net_state_dict[key] * self.tau +
+                                          target_net_state_dict[key] * (1 - self.tau))
+        self.target_net.load_state_dict(target_net_state_dict)

@@ -54,16 +54,19 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = env.last()
             done = termination or truncation
+
+            cumulative_rewards[curr_player_idx] += reward
+            action_mask = get_action_mask(observation, info)
+
             if players_last_decision[curr_player_idx]:  # skip first one
                 players_last_decision[curr_player_idx].update({
                     'next_observation': observation,
                     'reward': reward,
                     'done': done,
+                    'next_action_mask': action_mask,
                 })
                 replay_buffer.push(**players_last_decision[curr_player_idx])
 
-            cumulative_rewards[curr_player_idx] += reward
-            action_mask = get_action_mask(observation, info)
             if done:
                 action = None
             else:
