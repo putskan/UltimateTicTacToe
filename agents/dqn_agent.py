@@ -97,7 +97,6 @@ class DQNAgent(TrainableAgent):
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        print(f"loss - ", loss.item())
 
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
