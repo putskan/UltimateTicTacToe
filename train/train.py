@@ -6,8 +6,9 @@ from pettingzoo import AECEnv
 from pettingzoo.classic import tictactoe_v3
 from tqdm import tqdm
 
-from agents.dummy_trainable_agent import DummyTrainableAgent
 from agents.trainable_agent import TrainableAgent
+from agents.dqn_agent import DQNAgent
+
 from utils.replay_buffer import ReplayBuffer
 from utils.utils import get_action_mask
 
@@ -51,26 +52,31 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
         for curr_agent_str in env.agent_iter():
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = env.last()
-            if players_last_decision[curr_player_idx] is not None:  # skip first one
-                players_last_decision[curr_player_idx]['next_observation'] = observation
-                replay_buffer.push(**players_last_decision[curr_player_idx])
+            done = termination or truncation
 
             cumulative_rewards[curr_player_idx] += reward
             action_mask = get_action_mask(observation, info)
-            done = termination or truncation
+
+            if players_last_decision[curr_player_idx]:  # skip first one
+                players_last_decision[curr_player_idx].update({
+                    'next_observation': observation,
+                    'reward': reward,
+                    'done': done,
+                    'next_action_mask': action_mask,
+                })
+                replay_buffer.push(**players_last_decision[curr_player_idx])
+
             if done:
                 action = None
             else:
                 action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
                 players_last_decision[curr_player_idx] = dict(observation=observation,
-                                                              reward=reward,
-                                                              done=done, action=action,
+                                                              action=action,
                                                               action_mask=action_mask,
                                                               curr_player_idx=curr_player_idx)
 
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
-
         if curr_game % train_every == 0:
             agent.train_update(replay_buffer)
 
@@ -81,6 +87,9 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
 
 
 if __name__ == '__main__':
-    agent = DummyTrainableAgent()
     env = tictactoe_v3.env(render_mode=None)
-    train(env, agent)
+    env.reset()
+    state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
+    action_size = env.action_space(env.agents[0]).n
+    agent = DQNAgent(state_size=state_size, action_size=action_size)
+    train(env, agent, n_games=10000)
