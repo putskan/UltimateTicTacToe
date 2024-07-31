@@ -15,7 +15,7 @@ class UnbeatableClassicTTTAgent(Agent):
     an agent that always wins the classic 3x3 tic-tac-toe
     uses a db of all possible positions
     """
-    def __init__(self, db_path: Union[Path, str], *args, **kwargs):
+    def __init__(self, db_path: Union[Path, str] = Path(__file__).resolve().parent / 'state_db.json', *args, **kwargs):
         super().__init__(*args, **kwargs)
         with open(db_path, 'rb') as f:
             self.db = json.load(f)

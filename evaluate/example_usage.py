@@ -55,6 +55,6 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
 
 if __name__ == '__main__':
     state_db_path = '../agents/unbeatable_classic_ttt_agent/state_db.json'
-    players = [UnbeatableClassicTTTAgent(state_db_path), RandomAgent()]
+    players = [UnbeatableClassicTTTAgent(), RandomAgent()]
     env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
     play(env, players, n_games=1000)

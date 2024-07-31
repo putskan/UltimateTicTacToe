@@ -1,4 +1,5 @@
-from typing import List, Tuple, Dict
+import os
+from typing import List, Tuple
 from itertools import permutations
 from collections import Counter
 from logging import Logger
@@ -13,6 +14,8 @@ from agents.random_agent import RandomAgent
 from pettingzoo.classic import tictactoe_v3
 from tqdm import tqdm
 
+from agents.unbeatable_classic_ttt_agent.unbeatable_classic_ttt_agent import UnbeatableClassicTTTAgent
+from environments import ultimate_ttt
 from utils.utils import get_action_mask
 from utils.logger import get_logger
 
@@ -126,11 +129,14 @@ if __name__ == '__main__':
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
-    # TODO: switch to U-TTT environment
-    env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
+    # env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
+    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
     players = [RandomAgent("random1"), ChooseFirstActionAgent("choose1"),
-               RandomAgent("random2"), ChooseFirstActionAgent("choose2")]
+               RandomAgent("random2"), ChooseFirstActionAgent("choose2"),
+               # UnbeatableClassicTTTAgent(agent_name='unbeatable1'), UnbeatableClassicTTTAgent(agent_name='unbeatable2'),
+               ]
 
+    os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=args.log_to_console)
     evaluate_agents(env, players, logger)
