@@ -1,8 +1,7 @@
-from typing import List, Any
-
 import numpy as np
 
-from environments.piece import Piece
+from utils.piece import Piece
+from utils.utils import calculate_winning_combinations, check_for_winner_classic
 
 
 class Board:
@@ -10,10 +9,10 @@ class Board:
         self.depth = depth
         self.board_shape = tuple([3, 3] * depth)
         self.squares = np.full(self.board_shape, fill_value=Piece.EMPTY.value)
-        self.winning_combinations = self.calculate_winning_combinations()
+        self.winning_combinations = calculate_winning_combinations()
 
     def setup(self):
-        self.winning_combinations = self.calculate_winning_combinations()
+        self.winning_combinations = calculate_winning_combinations()
 
     def get_sub_board_winner(self, sub_board: np.ndarray) -> int:
         """
@@ -33,7 +32,7 @@ class Board:
         classic_board = np.zeros((3, 3))
         classic_board[player_1_win_mask] = Piece.X.value
         classic_board[player_2_win_mask] = Piece.O.value
-        classic_board_winner = self.check_for_winner_classic(classic_board)
+        classic_board_winner = check_for_winner_classic(classic_board, self.winning_combinations)
         return classic_board_winner
 
     def play_turn(self, agent, pos):
@@ -55,49 +54,6 @@ class Board:
                 break
             else:
                 self.squares[pos[:-i * 2]] = sub_board_winner
-
-    @staticmethod
-    def calculate_winning_combinations() -> List[Any]:
-        """
-        calculate and save all the winning combinations
-        """
-        winning_combinations = []
-        indices = [x for x in range(0, 9)]
-
-        # vertical combinations
-        winning_combinations += [
-            tuple(indices[i: (i + 3)]) for i in range(0, len(indices), 3)
-        ]
-
-        # horizontal combinations
-        winning_combinations += [
-            tuple(indices[x] for x in range(y, len(indices), 3)) for y in range(0, 3)
-        ]
-
-        # diagonal combinations
-        winning_combinations.append(tuple(x for x in range(0, len(indices), 4)))
-        winning_combinations.append(tuple(x for x in range(2, len(indices) - 1, 2)))
-
-        return winning_combinations
-
-    def check_for_winner_classic(self, three_on_three_board: np.ndarray) -> int:
-        """
-        for a 3x3 board, return the winner, or -1 if there's no winner
-        :param three_on_three_board: numpy array of shape (3, 3)
-        :return: the winner number
-        """
-        assert three_on_three_board.shape == (3, 3)
-        flattened_board = three_on_three_board.flatten().tolist()
-        winner = -1
-        for combination in self.winning_combinations:
-            states = []
-            for index in combination:
-                states.append(flattened_board[index])
-            if all(x == Piece.X.value for x in states):
-                winner = Piece.X.value
-            if all(x == Piece.O.value for x in states):
-                winner = Piece.O.value
-        return winner
 
     def check_for_winner(self) -> int:
         """
