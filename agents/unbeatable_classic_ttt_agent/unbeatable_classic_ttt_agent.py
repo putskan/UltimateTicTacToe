@@ -5,7 +5,7 @@ from typing import Any, Optional, Union
 import numpy as np
 from pettingzoo import AECEnv
 
-from agents.UnbeatableClassicTTTAgent.state_db import get_best_action
+from agents.unbeatable_classic_ttt_agent.state_db import get_best_action
 from agents.agent import Agent
 from utils.piece import Piece
 
