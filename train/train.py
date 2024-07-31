@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from agents.trainable_agent import TrainableAgent
 from agents.dqn_agent import DQNAgent
+from environments import ultimate_ttt
 
 from utils.replay_buffer import ReplayBuffer
 from utils.utils import get_action_mask
@@ -18,7 +19,10 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
           add_agent_to_pool_every: int = 500,
           train_every: int = 1,
           replay_buffer_size: int = 10_000,
-          seed: int = 42) -> None:
+          seed: int = 42,
+          render_every: int = 1000,
+          renderable_env: AECEnv = None,
+          ) -> None:
     """
     train using self-play
     :param env: environment to play in
@@ -29,10 +33,13 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
     :param train_every: call agent's train_update method every 'train_every' episodes
     :param replay_buffer_size: maximum size for the replay buffer
     :param seed: seed for reproducibility
+    :param render_every: when to render an episode to screen
+    :param renderable_env: same as env, but with render_mode='human'. will be displayed render episodes
     """
     assert isinstance(agent, TrainableAgent)
     env.reset(seed=seed)
     agent.train()
+
     replay_buffer = ReplayBuffer(size=replay_buffer_size)
     previous_agents = deque(maxlen=agent_pool_size)
     previous_agents.append(copy.deepcopy(agent))
@@ -48,6 +55,10 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
         players_last_decision = [None, None]
 
         curr_player_idx = 0
+        if curr_game > 0 and curr_game % render_every == 0:
+            original_env = env
+            env = renderable_env
+
         env.reset()
         for curr_agent_str in env.agent_iter():
             curr_player = players[curr_player_idx]
@@ -83,13 +94,18 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
         if curr_game > 0 and curr_game % add_agent_to_pool_every == 0:
             previous_agents.append(copy.deepcopy(agent))
 
+        if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:
+            env = original_env
+
     env.close()
 
 
 if __name__ == '__main__':
+    # env = ultimate_ttt.env(render_mode='human', depth=2, render_fps=10)
     env = tictactoe_v3.env(render_mode=None)
+    renderable_env = tictactoe_v3.env(render_mode='human')
     env.reset()
     state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
     action_size = env.action_space(env.agents[0]).n
     agent = DQNAgent(state_size=state_size, action_size=action_size)
-    train(env, agent, n_games=10000)
+    train(env, agent, n_games=10000, renderable_env=renderable_env)

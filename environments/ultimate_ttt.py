@@ -4,7 +4,7 @@ import numpy as np
 from gymnasium import spaces
 
 from pettingzoo import AECEnv
-from board import Board
+from environments.board import Board
 from pettingzoo.utils import agent_selector, wrappers
 
 from environments.board_renderer import BoardRenderer
@@ -33,7 +33,8 @@ class raw_env(AECEnv):
                  depth: int = 1, render_fps: int = 10):
         super().__init__()
         self.render_fps = render_fps
-        self.board_renderer = BoardRenderer(render_fps=self.render_fps)
+        if render_mode is not None:
+            self.board_renderer = BoardRenderer(render_fps=self.render_fps)
         self.depth = depth
         self.board = Board(depth=depth)
         self.forced_boards = None
@@ -155,7 +156,8 @@ class raw_env(AECEnv):
 
     def reset(self, seed=None, options=None):
         # reset environment
-        self.board_renderer = BoardRenderer(render_fps=self.render_fps)
+        if self.render_mode is not None:
+            self.board_renderer = BoardRenderer(render_fps=self.render_fps)
         self.board = Board(self.depth)
         self.forced_boards = [slice(None)] * 2 * (self.depth - 1)
         self.agents = self.possible_agents[:]
