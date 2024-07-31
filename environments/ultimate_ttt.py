@@ -1,252 +1,209 @@
-import functools
+from __future__ import annotations  # TODO?
 
-from gymnasium import Space
-from gymnasium.spaces import MultiDiscrete, MultiBinary
+import numpy as np
+from gymnasium import spaces
 
 from pettingzoo import AECEnv
+from board import Board
 from pettingzoo.utils import agent_selector, wrappers
-from enum import Enum
 
-ROCK = 0
-PAPER = 1
-SCISSORS = 2
-NONE = 3
-MOVES = ["ROCK", "PAPER", "SCISSORS", "None"]
-NUM_ITERS = 100
-REWARD_MAP = {
-    (ROCK, ROCK): (0, 0),
-    (ROCK, PAPER): (-1, 1),
-    (ROCK, SCISSORS): (1, -1),
-    (PAPER, ROCK): (1, -1),
-    (PAPER, PAPER): (0, 0),
-    (PAPER, SCISSORS): (-1, 1),
-    (SCISSORS, ROCK): (-1, 1),
-    (SCISSORS, PAPER): (1, -1),
-    (SCISSORS, SCISSORS): (0, 0),
-}
+from environments.board_renderer import BoardRenderer
 
 
-class Cell(Enum):
-    Empty = 0
-    X = 1
-    O = -1
-
-
-def env(render_mode: str = None, *args, **kwargs):
-    """
-    The env function often wraps the environment in wrappers by default.
-    You can find full documentation for these methods
-    elsewhere in the developer documentation.
-    """
+def env(render_mode: str = None, depth: int = 1) -> AECEnv:
     internal_render_mode = render_mode if render_mode != "ansi" else "human"
-    env = UltimateTTT(render_mode=internal_render_mode, *args, **kwargs)
-    # This wrapper is only for environments which print results to the terminal
+    env = raw_env(render_mode=internal_render_mode, depth=depth)
     if render_mode == "ansi":
         env = wrappers.CaptureStdoutWrapper(env)
-    # this wrapper helps error handling for discrete action spaces
+
+    env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-1)
     env = wrappers.AssertOutOfBoundsWrapper(env)
-    # Provides a wide vareity of helpful user errors
-    # Strongly recommended
     env = wrappers.OrderEnforcingWrapper(env)
     return env
 
 
-class UltimateTTT(AECEnv):
-    """
-    The metadata holds environment constants. From gymnasium, we inherit the "render_modes",
-    metadata which specifies which modes can be put into the render() method.
-    At least human mode should be supported.
-    The "name" metadata allows the environment to be pretty printed.
-    """
+class raw_env(AECEnv):
+    metadata = {
+        "render_modes": ["human"],
+        "name": "ultimate_ttt",
+        "is_parallelizable": False,
+    }
 
-    metadata = {"render_modes": ["human"], "name": "rps_v2"}
-
-    def __init__(self, render_mode=None, game_depth: int = 2, seed: int = None):
-        """
-        The init method takes in environment arguments and
-         should define the following attributes:
-        - possible_agents
-        - render_mode
-
-        Note: as of v1.18.1, the action_spaces and observation_spaces attributes are deprecated.
-        Spaces should be defined in the action_space() and observation_space() methods.
-        If these methods are not overridden, spaces will be inferred from self.observation_spaces/action_spaces, raising a warning.
-
-        These attributes should not be changed after initialization.
-        """
+    def __init__(self, render_mode: str | None = None,
+                 depth: int = 1, render_fps: int = 10):
         super().__init__()
-        self.seed = seed  # TODO: full reproducibility
-        self.game_depth = game_depth
-        self.possible_agents = ['X', 'O']
+        self.render_fps = render_fps
+        self.board_renderer = BoardRenderer(render_fps=self.render_fps)
+        self.depth = depth
+        self.board = Board(depth=depth)
 
-        # optional: a mapping between agent name and ID
+        self.agents = ["player_1", "player_2"]
+        self.possible_agents = self.agents[:]
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(len(self.possible_agents))))
         )
 
-        self.board_shape = tuple([3, 3] * game_depth)
+        n_actions = np.prod(self.board.board_shape)
+        self.action_spaces = {i: spaces.Discrete(n_actions)
+                              for i in self.agents}
+        # self.action_spaces = {i: spaces.Discrete(9) for i in self.agents}
+        obs_shape = list(self.board.board_shape) + [2]
+        self.observation_spaces = {
+            i: spaces.Dict(
+                {
+                    "observation": spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.int8),
+                    "action_mask": spaces.Discrete(n_actions),
+                }
+            )
+            for i in self.agents
+        }
+
+        self.rewards = {i: 0 for i in self.agents}
+        self.terminations = {i: False for i in self.agents}
+        self.truncations = {i: False for i in self.agents}
+        self.infos = {i: {} for i in self.agents}
+
+        self._agent_selector = agent_selector(self.agents)
+        self.agent_selection = self._agent_selector.reset()
         self.render_mode = render_mode
 
-    # Observation space should be defined here.
-    # lru_cache allows observation and action spaces to be memoized, reducing clock cycles required to get each agent's space.
-    # If your spaces change over time, remove this line (disable caching).
-    @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent) -> Space:
-        # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
-        return MultiDiscrete(self.board_shape, seed=self.seed)
-
-    # Action space should be defined here.
-    # If your spaces change over time, remove this line (disable caching).
-    @functools.lru_cache(maxsize=None)
-    def action_space(self, agent) -> Space:
-        return MultiBinary(self.board_shape, seed=self.seed)
-
-    def render(self):
-        """
-        Renders the environment. In human mode, it can print to terminal, open
-        up a graphical window, or open up some other display that a human can see and understand.
-        """
-        pass
-        # if self.render_mode is None:
-        #     gymnasium.logger.warn(
-        #         "You are calling render method without specifying any render mode."
-        #     )
-        #     return
-        #
-        # if len(self.agents) == 2:
-        #     string = "Current state: Agent1: {} , Agent2: {}".format(
-        #         MOVES[self.state[self.agents[0]]], MOVES[self.state[self.agents[1]]]
-        #     )
-        # else:
-        #     string = "Game over"
-        # print(string)
-
     def observe(self, agent):
-        """
-        Observe should return the observation of the specified agent. This function
-        should return a sane observation (though not necessarily the most up to date possible)
-        at any time after reset() is called.
-        """
-        # observation of one agent is the previous state of the other
-        # return np.array(self.observations[agent])
+        board_vals = self.board.squares
+        cur_player = self.possible_agents.index(agent)
+        opp_player = (cur_player + 1) % 2
 
-        return self.observation
+        cur_p_board = np.equal(board_vals, cur_player + 1)  # TODO: change to enum, in board as well
+        opp_p_board = np.equal(board_vals, opp_player + 1)
 
-    def close(self):
-        """
-        Close should release any graphical displays, subprocesses, network connections
-        or any other environment data which should not be kept around after the
-        user is no longer using the environment.
-        """
-        pass
+        observation = np.stack([cur_p_board, opp_p_board], axis=self.depth + 1).astype(np.int8)
+        if agent != self.agent_selection:  # TODO: remove
+            assert np.any(list(self.terminations.values())), list(self.terminations.values())
 
-    def reset(self, seed=None, options=None):
+
+        # action_mask = legal_moves  # TODO: why int8 and not bool? remove?
+        # action_mask = np.ravel_multi_index(np.nonzero(legal_moves), self.board.board_shape)
+        legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
+        action_mask = legal_moves.flatten().astype(np.int8)
+        return {"observation": observation, "action_mask": action_mask}
+
+    def observation_space(self, agent):
+        return self.observation_spaces[agent]
+
+    def action_space(self, agent):
+        return self.action_spaces[agent]
+
+    def _legal_moves(self) -> np.ndarray:
         """
-        Reset needs to initialize the following attributes
-        - agents
-        - rewards
-        - _cumulative_rewards
-        - terminations
-        - truncations
-        - infos
-        - agent_selection
-        And must set up the environment so that render(), step(), and observe()
-        can be called without issues.
-        Here it sets up the state dictionary which is used by step() and the observations dictionary which is used by step() and observe()
+        filter boards we're not allowed to use + cells which are already occupied
+        :return: boolean numpy array. True if legal, False otherwise.
         """
-        self.agents = self.possible_agents[:]
-        self.rewards = {agent: 0 for agent in self.agents}
-        self._cumulative_rewards = {agent: 0 for agent in self.agents}
-        self.terminations = {agent: False for agent in self.agents}
-        self.truncations = {agent: False for agent in self.agents}
-        self.infos = {agent: {} for agent in self.agents}
-        self.state = {agent: NONE for agent in self.agents}  # action list
-        # self.observations = {agent: NONE for agent in self.agents}
-        self.observation = None  # TODO: understand
-        self.num_moves = 0  # TODO: consider removal
-        self._agent_selector = agent_selector(self.agents)
-        self.agent_selection = self._agent_selector.next()
+        if len(self.forced_boards) == 0:
+            # relevant only for classic TTT
+            assert self.depth == 1
+            return self.board.squares == 0
+
+        legal_moves_mask = np.zeros_like(self.board.squares, dtype=np.bool)
+        legal_moves_mask[*self.forced_boards] = True
+        legal_moves_mask = np.logical_and(legal_moves_mask, self.board.squares == 0)
+        return legal_moves_mask
 
     def step(self, action):
-        """
-        step(action) takes in an action for the current agent (specified by
-        agent_selection) and needs to update
-        - rewards
-        - _cumulative_rewards (accumulating the rewards)
-        - terminations
-        - truncations
-        - infos
-        - agent_selection (to the next agent)
-        And any internal state used by observe() or render()
-        """
         if (
             self.terminations[self.agent_selection]
             or self.truncations[self.agent_selection]
         ):
-            # handles stepping an agent which is already dead
-            # accepts a None action for the one agent, and moves the agent_selection to
-            # the next dead agent,  or if there are no more dead agents, to the next live agent
-            self._was_dead_step(action)
-            return
+            return self._was_dead_step(action)
+        # check if input action is a valid move (0 == empty spot)
+        # assert self.board.squares[action] == 0, "played illegal move"
+        action = np.unravel_index(action, self.board.board_shape)
+        assert self._legal_moves()[action], "played illegal move"  # TODO: faster implementation? delete due to wrapper?
+        # play turn
+        self.board.play_turn(self.agents.index(self.agent_selection), action)
 
-        agent = self.agent_selection
-        self._cumulative_rewards[agent] = 0
+        # TODO: move to function
+        self.forced_boards = list(action)[2:]
 
-        # stores action of current agent
-        self.state[self.agent_selection] = action
+        for i in range(len(self.forced_boards), 0, -2):
+            sub_board_indices = self.forced_boards[:i]
+            if np.all(self.board.squares[*sub_board_indices] != 0):
+                # sub-game is finished
+                self.forced_boards[i - 1] = slice(None)
+                self.forced_boards[i - 2] = slice(None)
+            else:
+                break
 
-        # collect reward if it is the last agent to act
-        if self._agent_selector.is_last():
-            # rewards for all agents are placed in the .rewards dictionary
-            # TODO: should be zero, apart from game finish
-            # self.rewards[self.agents[0]], self.rewards[self.agents[1]] = REWARD_MAP[
-            #     (self.state[self.agents[0]], self.state[self.agents[1]])
-            # ]
-            self.rewards = {agent: 0 for agent in self.agents}
 
-            self.num_moves += 1
-            # The truncations dictionary must be updated for all players.
-            self.truncations = {agent: False for agent in self.agents}
+        next_agent = self._agent_selector.next()
+        if self.board.check_game_over():
+            winner = self.board.check_for_winner()
+            if winner == 1:
+                # agent 0 won
+                self.rewards[self.agents[0]] += 1
+                self.rewards[self.agents[1]] -= 1
+            elif winner == 2:
+                # agent 1 won
+                self.rewards[self.agents[1]] += 1
+                self.rewards[self.agents[0]] -= 1
 
-            # observe the current state
-            # TODO: move logic goes here
-            """
-            check which player it is,
-            validate action (valid place to position, he has to put it there etc),
-            place its piece,
-            check win
-            """
-            # for i in self.agents:
-            #     self.observations[i] = self.state[
-            #         self.agents[1 - self.agent_name_mapping[i]]
-            #     ]
-        else:
-            # necessary so that observe() returns a reasonable observation at all times.
-            self.state[self.agents[1 - self.agent_name_mapping[agent]]] = NONE  # TODO: probably change
-            # no rewards are allocated until both players give an action
-            self._clear_rewards()
+            self.terminations = {i: True for i in self.agents}
 
-        # selects the next agent.
-        self.agent_selection = self._agent_selector.next()
-        # Adds .rewards to ._cumulative_rewards
+        self._cumulative_rewards[self.agent_selection] = 0
+        self.agent_selection = next_agent
+
         self._accumulate_rewards()
-
         if self.render_mode == "human":
             self.render()
 
+    def reset(self, seed=None, options=None):
+        # reset environment
+        self.board_renderer = BoardRenderer(render_fps=self.render_fps)
+        self.board = Board(self.depth)
+        self.forced_boards = [slice(None)] * 2 * (self.depth - 1)
+        self.agents = self.possible_agents[:]
+        self.rewards = {i: 0 for i in self.agents}
+        self._cumulative_rewards = {i: 0 for i in self.agents}
+        self.terminations = {i: False for i in self.agents}
+        self.truncations = {i: False for i in self.agents}
+        self.infos = {i: {} for i in self.agents}
+        # selects the first agent
+        self._agent_selector.reinit(self.agents)
+        self._agent_selector.reset()
+        self.agent_selection = self._agent_selector.reset()
+
+    def close(self):
+        pass
+
+    def render(self):
+        self.board_renderer.render(self.board.squares)
+        # print(self.board)
+
 
 if __name__ == '__main__':
-    environment = env(render_mode="human")
+    import time
+    environment = env(render_mode="human", depth=2)
     environment.reset(seed=42)
+    cumulative_rewards = [0, 0]
+    curr_player_idx = 0
 
     for agent in environment.agent_iter():
         observation, reward, termination, truncation, info = environment.last()
-
         if termination or truncation:
             action = None
         else:
-            # this is where you would insert your policy
-            action = environment.action_space(agent).sample()
+            action_mask = observation['action_mask']
+            action = environment.action_space(agent).sample(mask=action_mask)
 
+        cumulative_rewards[curr_player_idx] += reward
         environment.step(action)
+        curr_player_idx = (curr_player_idx + 1) % 2
+
+    environment.render()
+    is_draw = np.all(np.array(cumulative_rewards) == cumulative_rewards[0])
+    if is_draw:
+        print('Draw!')
+    else:
+        winner = np.argmax(cumulative_rewards).item()
+        print(f'Player {winner + 1} wins!')
+
+    time.sleep(10)
     environment.close()

@@ -30,7 +30,6 @@ class BoardRenderer:
 
         pygame.init()
         self.screen = pygame.display.set_mode((width, height))
-        self.screen.fill(self.BG_COLOR)
         self.clock = pygame.time.Clock()
 
     @staticmethod
@@ -53,18 +52,19 @@ class BoardRenderer:
         if sub_board.ndim == 0 and sub_board.item() == Piece.EMPTY.value:
             return
         if np.all(sub_board == Piece.X.value):
-            pygame.draw.line(screen, BoardRenderer.LINE_COLOR, top_left, bottom_right, BoardRenderer.LINE_WIDTH // 3)
-            pygame.draw.line(screen, BoardRenderer.LINE_COLOR,
+            pygame.draw.line(screen, BoardRenderer.CROSS_COLOR, top_left, bottom_right, BoardRenderer.LINE_WIDTH // 3)
+            pygame.draw.line(screen, BoardRenderer.CROSS_COLOR,
                              (top_left[0], bottom_right[1]),
                              (bottom_right[0], top_left[1]),
                              BoardRenderer.LINE_WIDTH // 3)
+
             return
 
         if np.all(sub_board == Piece.O.value):
             radius = min(bottom_right[0] - top_left[0], bottom_right[1] - top_left[1]) // 2 + padding // 2
             center = (top_left[0] + (bottom_right[0] - top_left[0]) // 2,
                       top_left[1] + (bottom_right[1] - top_left[1]) // 2)
-            pygame.draw.circle(screen, BoardRenderer.LINE_COLOR, center, radius, width=BoardRenderer.LINE_WIDTH // 3)
+            pygame.draw.circle(screen, BoardRenderer.CIRCLE_COLOR, center, radius, width=BoardRenderer.LINE_WIDTH // 3)
             assert radius > 0
             return
 
@@ -103,6 +103,7 @@ class BoardRenderer:
         render the board to screen
         :param board: numpy array of shape (3, ..., 3) (even number of dimensions). Each entry should be if enum Piece
         """
+        self.screen.fill(self.BG_COLOR)
         assert board.ndim % 2 == 0
         depth = board.ndim // 2
         self.draw_sub_board(self.screen, board, (0, 0), (self.height, self.width),
@@ -111,11 +112,11 @@ class BoardRenderer:
         self.clock.tick(self.render_fps)
         # TODO: change
         pygame.event.get()
-        run = True
-        while run:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    run = False
+        # run = True
+        # while run:
+        #     for event in pygame.event.get():
+        #         if event.type == pygame.QUIT:
+        #             run = False
 
         # pygame.quit()
 
@@ -127,5 +128,4 @@ if __name__ == '__main__':
     board = np.random.choice([Piece.X.value, Piece.O.value, Piece.EMPTY.value], size=shape)
     board[0, 0] = Piece.O.value
     board[0, 2] = Piece.X.value
-    print(board[0, 1])
     board_renderer.render(board)
