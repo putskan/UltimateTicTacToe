@@ -108,4 +108,4 @@ if __name__ == '__main__':
     state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
     action_size = env.action_space(env.agents[0]).n
     agent = DQNAgent(state_size=state_size, action_size=action_size)
-    train(env, agent, n_games=10000, renderable_env=renderable_env)
+    train(env, agent, n_games=10000, render_every=5000, renderable_env=renderable_env)
