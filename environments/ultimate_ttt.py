@@ -82,7 +82,7 @@ class raw_env(AECEnv):
         curr_piece_board = board_vals == curr_player_piece
         opponent_piece_board = board_vals == opponent_player_piece
 
-        observation = np.stack([curr_piece_board, opponent_piece_board], axis=self.depth + 1).astype(np.int8)
+        observation = np.stack([curr_piece_board, opponent_piece_board], axis=2 * self.depth + 1).astype(np.int8)
 
         legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
         action_mask = legal_moves.flatten().astype(np.int8)
