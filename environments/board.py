@@ -43,9 +43,6 @@ class Board:
         :param pos: tuple, representing the position to play
         :return:
         """
-        # if spot is empty
-        # if self.squares[pos] != 0:
-        #     return
         if agent == 0:
             self.squares[pos] = Piece.X.value
         elif agent == 1:
