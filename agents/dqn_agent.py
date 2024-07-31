@@ -5,25 +5,9 @@ import torch.optim as optim
 import random
 
 from agents.trainable_agent import TrainableAgent
+from models.dqn import DQN
 from utils.replay_buffer import ReplayBuffer
-import torch.nn.functional as F
 import copy
-
-
-class DQN(nn.Module):
-    def __init__(self, n_observations, n_actions):
-        super(DQN, self).__init__()
-        n_observations = np.prod(n_observations)
-        self.flatten = nn.Flatten()
-        self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, n_actions)
-
-    def forward(self, x):
-        x = self.flatten(x)
-        x = F.relu(self.layer1(x))
-        x = F.relu(self.layer2(x))
-        return self.layer3(x)
 
 
 class DQNAgent(TrainableAgent):

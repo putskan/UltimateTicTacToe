@@ -41,7 +41,7 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
 
-        is_draw = np.all(np.array(cumulative_rewards) == cumulative_rewards[0])
+        is_draw = cumulative_rewards[0] == cumulative_rewards[1]
         if is_draw:
             results['draws'] += 1
         else:
