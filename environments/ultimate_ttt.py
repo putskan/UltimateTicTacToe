@@ -11,7 +11,7 @@ from environments.board_renderer import BoardRenderer
 from utils.piece import Piece
 
 
-def env(render_mode: str = None, depth: int = 1, render_fps: int = 10) -> AECEnv:
+def env(render_mode: str = None, depth: int = 2, render_fps: int = 10) -> AECEnv:
     env = raw_env(render_mode=render_mode, depth=depth, render_fps=render_fps)
     if render_mode == 'ansi':
         env = wrappers.CaptureStdoutWrapper(env)
@@ -82,7 +82,7 @@ class raw_env(AECEnv):
         curr_piece_board = board_vals == curr_player_piece
         opponent_piece_board = board_vals == opponent_player_piece
 
-        observation = np.stack([curr_piece_board, opponent_piece_board], axis=self.depth + 1).astype(np.int8)
+        observation = np.stack([curr_piece_board, opponent_piece_board], axis=2 * self.depth).astype(np.int8)
 
         legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
         action_mask = legal_moves.flatten().astype(np.int8)

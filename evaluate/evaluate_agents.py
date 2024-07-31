@@ -10,6 +10,7 @@ from pettingzoo import AECEnv
 
 from agents.agent import Agent
 from agents.choose_first_action_agent import ChooseFirstActionAgent
+from agents.hierarchical_agent import HierarchicalAgent
 from agents.random_agent import RandomAgent
 from pettingzoo.classic import tictactoe_v3
 from tqdm import tqdm
@@ -129,11 +130,12 @@ if __name__ == '__main__':
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
-    # env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
-    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
+    env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
+    # env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
     players = [RandomAgent("random1"), ChooseFirstActionAgent("choose1"),
                RandomAgent("random2"), ChooseFirstActionAgent("choose2"),
                # UnbeatableClassicTTTAgent(agent_name='unbeatable1'), UnbeatableClassicTTTAgent(agent_name='unbeatable2'),
+               HierarchicalAgent(agent_name="hierarchical1"), HierarchicalAgent(agent_name="hierarchical2"),
                ]
 
     os.makedirs('logs', exist_ok=True)
