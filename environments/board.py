@@ -2,12 +2,14 @@ from typing import List, Any
 
 import numpy as np
 
+from environments.piece import Piece
+
 
 class Board:
     def __init__(self, depth: int):
         self.depth = depth
         self.board_shape = tuple([3, 3] * depth)
-        self.squares = np.zeros(self.board_shape)
+        self.squares = np.full(self.board_shape, fill_value=Piece.EMPTY.value)
         self.winning_combinations = self.calculate_winning_combinations()
 
     def setup(self):
@@ -26,28 +28,28 @@ class Board:
             sub_board = sub_board[..., np.newaxis]
 
         np_all_axis = tuple(range(2, sub_board.ndim))
-        player_1_win_mask = np.all(sub_board == 1, axis=np_all_axis)
-        player_2_win_mask = np.all(sub_board == 2, axis=np_all_axis)
+        player_1_win_mask = np.all(sub_board == Piece.X.value, axis=np_all_axis)
+        player_2_win_mask = np.all(sub_board == Piece.O.value, axis=np_all_axis)
         classic_board = np.zeros((3, 3))
-        classic_board[player_1_win_mask] = 1
-        classic_board[player_2_win_mask] = 2
+        classic_board[player_1_win_mask] = Piece.X.value
+        classic_board[player_2_win_mask] = Piece.O.value
         classic_board_winner = self.check_for_winner_classic(classic_board)
         return classic_board_winner
 
     def play_turn(self, agent, pos):
         """
         play the turn, and set the sub-board to the agent's value if it won
-        :param agent:
-        :param pos:
+        :param agent: agent number (0 / 1)
+        :param pos: tuple, representing the position to play
         :return:
         """
         # if spot is empty
         # if self.squares[pos] != 0:
         #     return
         if agent == 0:
-            self.squares[pos] = 1
+            self.squares[pos] = Piece.X.value
         elif agent == 1:
-            self.squares[pos] = 2
+            self.squares[pos] = Piece.O.value
 
         for i in range(1, self.depth):
             sub_board = self.squares[pos[:-i * 2]]
@@ -65,17 +67,17 @@ class Board:
         winning_combinations = []
         indices = [x for x in range(0, 9)]
 
-        # Vertical combinations
+        # vertical combinations
         winning_combinations += [
-            tuple(indices[i : (i + 3)]) for i in range(0, len(indices), 3)
+            tuple(indices[i: (i + 3)]) for i in range(0, len(indices), 3)
         ]
 
-        # Horizontal combinations
+        # horizontal combinations
         winning_combinations += [
             tuple(indices[x] for x in range(y, len(indices), 3)) for y in range(0, 3)
         ]
 
-        # Diagonal combinations
+        # diagonal combinations
         winning_combinations.append(tuple(x for x in range(0, len(indices), 4)))
         winning_combinations.append(tuple(x for x in range(2, len(indices) - 1, 2)))
 
@@ -94,38 +96,27 @@ class Board:
             states = []
             for index in combination:
                 states.append(flattened_board[index])
-            if all(x == 1 for x in states):
-                winner = 1
-            if all(x == 2 for x in states):
-                winner = 2
+            if all(x == Piece.X.value for x in states):
+                winner = Piece.X.value
+            if all(x == Piece.O.value for x in states):
+                winner = Piece.O.value
         return winner
 
     def check_for_winner(self) -> int:
         """
         if someone won, return its id, or -1 otherwise
-        :return:
+        :return: the winner
         """
         return self.get_sub_board_winner(self.squares)
-
-        # winner = -1
-        # for combination in self.winning_combinations:
-        #     states = []
-        #     for index in combination:
-        #         states.append(self.squares[index])
-        #     if all(x == 1 for x in states):
-        #         winner = 1
-        #     if all(x == 2 for x in states):
-        #         winner = 2
-        # return winner
 
     def check_game_over(self) -> bool:
         """
         :return: True if game is over, False otherwise
         """
         winner = self.check_for_winner()
-        if winner in [1, 2]:
+        if winner in [Piece.X.value, Piece.O.value]:
             return True
-        elif np.all(self.squares != 0):
+        elif np.all(self.squares != Piece.EMPTY.value):
             # tie
             return True
         else:

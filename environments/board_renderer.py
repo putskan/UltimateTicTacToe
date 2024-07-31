@@ -1,14 +1,9 @@
-from enum import Enum
 from typing import Tuple
 
 import numpy as np
 import pygame
 
-
-class Piece(Enum):
-    EMPTY = 0
-    X = 1
-    O = 2
+from environments.piece import Piece
 
 
 class BoardRenderer:

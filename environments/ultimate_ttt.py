@@ -1,4 +1,4 @@
-from __future__ import annotations  # TODO?
+from typing import Tuple, Union
 
 import numpy as np
 from gymnasium import spaces
@@ -8,12 +8,12 @@ from board import Board
 from pettingzoo.utils import agent_selector, wrappers
 
 from environments.board_renderer import BoardRenderer
+from environments.piece import Piece
 
 
-def env(render_mode: str = None, depth: int = 1) -> AECEnv:
-    internal_render_mode = render_mode if render_mode != "ansi" else "human"
-    env = raw_env(render_mode=internal_render_mode, depth=depth)
-    if render_mode == "ansi":
+def env(render_mode: str = None, depth: int = 1, render_fps: int = 10) -> AECEnv:
+    env = raw_env(render_mode=render_mode, depth=depth, render_fps=render_fps)
+    if render_mode == 'ansi':
         env = wrappers.CaptureStdoutWrapper(env)
 
     env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-1)
@@ -24,9 +24,9 @@ def env(render_mode: str = None, depth: int = 1) -> AECEnv:
 
 class raw_env(AECEnv):
     metadata = {
-        "render_modes": ["human"],
-        "name": "ultimate_ttt",
-        "is_parallelizable": False,
+        'render_modes': ['human'],
+        'name': 'ultimate_ttt',
+        'is_parallelizable': False,
     }
 
     def __init__(self, render_mode: str | None = None,
@@ -36,8 +36,9 @@ class raw_env(AECEnv):
         self.board_renderer = BoardRenderer(render_fps=self.render_fps)
         self.depth = depth
         self.board = Board(depth=depth)
+        self.forced_boards = None
 
-        self.agents = ["player_1", "player_2"]
+        self.agents = ['player_1', 'player_2']
         self.possible_agents = self.agents[:]
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(len(self.possible_agents))))
@@ -51,8 +52,8 @@ class raw_env(AECEnv):
         self.observation_spaces = {
             i: spaces.Dict(
                 {
-                    "observation": spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.int8),
-                    "action_mask": spaces.Discrete(n_actions),
+                    'observation': spaces.Box(low=0, high=1, shape=obs_shape, dtype=np.int8),
+                    'action_mask': spaces.Discrete(n_actions),
                 }
             )
             for i in self.agents
@@ -84,7 +85,7 @@ class raw_env(AECEnv):
         # action_mask = np.ravel_multi_index(np.nonzero(legal_moves), self.board.board_shape)
         legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
         action_mask = legal_moves.flatten().astype(np.int8)
-        return {"observation": observation, "action_mask": action_mask}
+        return {'observation': observation, 'action_mask': action_mask}
 
     def observation_space(self, agent):
         return self.observation_spaces[agent]
@@ -100,48 +101,46 @@ class raw_env(AECEnv):
         if len(self.forced_boards) == 0:
             # relevant only for classic TTT
             assert self.depth == 1
-            return self.board.squares == 0
+            return self.board.squares == Piece.EMPTY.value
 
         legal_moves_mask = np.zeros_like(self.board.squares, dtype=np.bool)
         legal_moves_mask[*self.forced_boards] = True
-        legal_moves_mask = np.logical_and(legal_moves_mask, self.board.squares == 0)
+        legal_moves_mask = np.logical_and(legal_moves_mask, self.board.squares == Piece.EMPTY.value)
         return legal_moves_mask
 
-    def step(self, action):
-        if (
-            self.terminations[self.agent_selection]
-            or self.truncations[self.agent_selection]
-        ):
-            return self._was_dead_step(action)
-        # check if input action is a valid move (0 == empty spot)
-        # assert self.board.squares[action] == 0, "played illegal move"
-        action = np.unravel_index(action, self.board.board_shape)
-        assert self._legal_moves()[action], "played illegal move"  # TODO: faster implementation? delete due to wrapper?
-        # play turn
-        self.board.play_turn(self.agents.index(self.agent_selection), action)
-
-        # TODO: move to function
-        self.forced_boards = list(action)[2:]
-
+    def update_forced_boards(self, unraveled_action: Tuple[Union[int, np.signedinteger], ...]) -> None:
+        """
+        update the forced boards, so the next player must play a specified board
+        """
+        self.forced_boards = list(unraveled_action)[2:]
         for i in range(len(self.forced_boards), 0, -2):
             sub_board_indices = self.forced_boards[:i]
-            if np.all(self.board.squares[*sub_board_indices] != 0):
+            if np.all(self.board.squares[*sub_board_indices] != Piece.EMPTY.value):
                 # sub-game is finished
                 self.forced_boards[i - 1] = slice(None)
                 self.forced_boards[i - 2] = slice(None)
             else:
                 break
 
+    def step(self, action: int):
+        if (
+            self.terminations[self.agent_selection]
+            or self.truncations[self.agent_selection]
+        ):
+            return self._was_dead_step(action)
+
+        unraveled_action = np.unravel_index(action, self.board.board_shape)
+        self.board.play_turn(self.agents.index(self.agent_selection), unraveled_action)
+
+        self.update_forced_boards(unraveled_action)
 
         next_agent = self._agent_selector.next()
         if self.board.check_game_over():
             winner = self.board.check_for_winner()
             if winner == 1:
-                # agent 0 won
                 self.rewards[self.agents[0]] += 1
                 self.rewards[self.agents[1]] -= 1
             elif winner == 2:
-                # agent 1 won
                 self.rewards[self.agents[1]] += 1
                 self.rewards[self.agents[0]] -= 1
 
@@ -151,7 +150,7 @@ class raw_env(AECEnv):
         self.agent_selection = next_agent
 
         self._accumulate_rewards()
-        if self.render_mode == "human":
+        if self.render_mode == 'human':
             self.render()
 
     def reset(self, seed=None, options=None):
@@ -175,12 +174,11 @@ class raw_env(AECEnv):
 
     def render(self):
         self.board_renderer.render(self.board.squares)
-        # print(self.board)
 
 
 if __name__ == '__main__':
     import time
-    environment = env(render_mode="human", depth=2)
+    environment = env(render_mode='human', depth=2, render_fps=5)
     environment.reset(seed=42)
     cumulative_rewards = [0, 0]
     curr_player_idx = 0
@@ -198,7 +196,7 @@ if __name__ == '__main__':
         curr_player_idx = (curr_player_idx + 1) % 2
 
     environment.render()
-    is_draw = np.all(np.array(cumulative_rewards) == cumulative_rewards[0])
+    is_draw = cumulative_rewards[0] == cumulative_rewards[1]
     if is_draw:
         print('Draw!')
     else:
