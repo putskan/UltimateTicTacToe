@@ -44,7 +44,7 @@ def play_single_game(env: AECEnv, players: Tuple[Agent, Agent]) -> Tuple[float, 
         if done:
             action = None
         else:
-            action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
+            action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask, info)
         env.step(action)
         curr_player_idx = (curr_player_idx + 1) % len(players)
 
@@ -130,12 +130,11 @@ if __name__ == '__main__':
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
-    env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
-    # env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
-    players = [RandomAgent("random1"), ChooseFirstActionAgent("choose1"),
-               RandomAgent("random2"), ChooseFirstActionAgent("choose2"),
+    # env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
+    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
+    players = [RandomAgent(), ChooseFirstActionAgent(),
                # UnbeatableClassicTTTAgent(agent_name='unbeatable1'), UnbeatableClassicTTTAgent(agent_name='unbeatable2'),
-               HierarchicalAgent(agent_name="hierarchical1"), HierarchicalAgent(agent_name="hierarchical2"),
+               HierarchicalAgent(),
                ]
 
     os.makedirs('logs', exist_ok=True)

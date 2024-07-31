@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 import numpy as np
 from gymnasium.spaces import Discrete
@@ -12,7 +12,8 @@ class ChooseFirstActionAgent(Agent):
     Always chooses the first valid action in the list
     """
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
-             curr_agent_str: str, action_mask: Optional[np.ndarray]) -> Any:
+             curr_agent_str: str, action_mask: Optional[np.ndarray],
+             info: Dict[str, Any]) -> Any:
         assert isinstance(env.action_space(curr_agent_str), Discrete)
         action = np.argmax(action_mask).item()  # get first True value
         return action

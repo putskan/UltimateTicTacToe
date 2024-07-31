@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -39,7 +41,7 @@ class DQNAgent(TrainableAgent):
 
         self.modules.append(self.policy_net)
 
-    def play(self, env, obs, curr_agent_idx, curr_agent_str, action_mask):
+    def play(self, env, obs, curr_agent_idx, curr_agent_str, action_mask, info: Dict[str, Any]):
         if random.random() <= self.epsilon:
             return env.action_space(curr_agent_str).sample(action_mask)
 

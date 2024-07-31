@@ -63,7 +63,7 @@ class raw_env(AECEnv):
         self.rewards = {i: 0 for i in self.agents}
         self.terminations = {i: False for i in self.agents}
         self.truncations = {i: False for i in self.agents}
-        self.infos = {i: {} for i in self.agents}
+        self.infos = {i: {'forced_boards': self.forced_boards} for i in self.agents}
 
         self._agent_selector = agent_selector(self.agents)
         self.agent_selection = self._agent_selector.reset()
@@ -122,6 +122,9 @@ class raw_env(AECEnv):
                 self.forced_boards[i - 2] = slice(None)
             else:
                 break
+
+        for k in self.infos:
+            self.infos[k]['forced_boards'] = self.forced_boards
 
     def step(self, action: int):
         if (
@@ -197,7 +200,6 @@ if __name__ == '__main__':
         environment.step(action)
         curr_player_idx = (curr_player_idx + 1) % 2
 
-    environment.render()
     is_draw = cumulative_rewards[0] == cumulative_rewards[1]
     if is_draw:
         print('Draw!')
@@ -205,5 +207,7 @@ if __name__ == '__main__':
         winner = np.argmax(cumulative_rewards).item()
         print(f'Player {winner + 1} wins!')
 
+    environment.render()
     time.sleep(10)
+
     environment.close()

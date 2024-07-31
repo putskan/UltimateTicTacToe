@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Dict
 
 import numpy as np
 from pettingzoo import AECEnv
@@ -21,7 +21,8 @@ class UnbeatableClassicTTTAgent(Agent):
             self.db = json.load(f)
 
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
-             curr_agent_str: str, action_mask: Optional[np.ndarray]) -> Any:
+             curr_agent_str: str, action_mask: Optional[np.ndarray],
+             info: Dict[str, Any]) -> Any:
         if isinstance(obs, dict):
             obs = obs['observation']
 
