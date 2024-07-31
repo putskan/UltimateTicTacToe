@@ -30,7 +30,7 @@ def play_single_game(env: AECEnv, players: Tuple[Agent, Agent]) -> Tuple[float, 
     """
     cumulative_rewards = [0] * len(players)
     curr_player_idx = 0
-    obs = env.reset()
+    env.reset()
     for curr_agent_str in env.agent_iter():
         curr_player = players[curr_player_idx]
         observation, reward, termination, truncation, info = env.last()
@@ -40,7 +40,7 @@ def play_single_game(env: AECEnv, players: Tuple[Agent, Agent]) -> Tuple[float, 
         if done:
             action = None
         else:
-            action = curr_player.play(env, obs, curr_player_idx, curr_agent_str, action_mask)
+            action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
         env.step(action)
         curr_player_idx = (curr_player_idx + 1) % len(players)
 
