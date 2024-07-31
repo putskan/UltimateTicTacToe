@@ -70,19 +70,19 @@ class raw_env(AECEnv):
 
     def observe(self, agent):
         board_vals = self.board.squares
-        cur_player = self.possible_agents.index(agent)
-        opp_player = (cur_player + 1) % 2
+        curr_player_idx = self.possible_agents.index(agent)
+        if curr_player_idx == 0:
+            curr_player_piece = Piece.X.value
+            opponent_player_piece = Piece.O.value
+        else:
+            curr_player_piece = Piece.O.value
+            opponent_player_piece = Piece.X.value
 
-        cur_p_board = np.equal(board_vals, cur_player + 1)  # TODO: change to enum, in board as well
-        opp_p_board = np.equal(board_vals, opp_player + 1)
+        curr_piece_board = board_vals == curr_player_piece
+        opponent_piece_board = board_vals == opponent_player_piece
 
-        observation = np.stack([cur_p_board, opp_p_board], axis=self.depth + 1).astype(np.int8)
-        if agent != self.agent_selection:  # TODO: remove
-            assert np.any(list(self.terminations.values())), list(self.terminations.values())
+        observation = np.stack([curr_piece_board, opponent_piece_board], axis=self.depth + 1).astype(np.int8)
 
-
-        # action_mask = legal_moves  # TODO: why int8 and not bool? remove?
-        # action_mask = np.ravel_multi_index(np.nonzero(legal_moves), self.board.board_shape)
         legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
         action_mask = legal_moves.flatten().astype(np.int8)
         return {'observation': observation, 'action_mask': action_mask}

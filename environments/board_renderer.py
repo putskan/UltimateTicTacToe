@@ -107,15 +107,6 @@ class BoardRenderer:
                             line_width=self.LINE_WIDTH, padding=self.PADDING // depth)
         pygame.display.update()
         self.clock.tick(self.render_fps)
-        # TODO: change
-        pygame.event.get()
-        # run = True
-        # while run:
-        #     for event in pygame.event.get():
-        #         if event.type == pygame.QUIT:
-        #             run = False
-
-        # pygame.quit()
 
 
 if __name__ == '__main__':

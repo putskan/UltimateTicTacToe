@@ -5,4 +5,3 @@ class Piece(Enum):
     EMPTY = -1
     X = 1
     O = 2
-
