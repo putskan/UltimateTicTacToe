@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import pygame
 
-from environments.piece import Piece
+from utils.piece import Piece
 
 
 class BoardRenderer:

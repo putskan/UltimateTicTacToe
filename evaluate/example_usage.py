@@ -3,6 +3,7 @@ from typing import List
 import numpy as np
 from pettingzoo import AECEnv
 
+from agents.UnbeatableClassicTTTAgent.unbeatable_classic_ttt_agent import UnbeatableClassicTTTAgent
 from agents.agent import Agent
 from agents.choose_first_action_agent import ChooseFirstActionAgent
 from agents.random_agent import RandomAgent
@@ -27,7 +28,7 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
     for _ in tqdm(range(n_games)):
         cumulative_rewards = [0] * len(players)
         curr_player_idx = 0
-        obs = env.reset()
+        env.reset()
         for curr_agent_str in env.agent_iter():
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = env.last()
@@ -37,7 +38,7 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
             if done:
                 action = None
             else:
-                action = curr_player.play(env, obs, curr_player_idx, curr_agent_str, action_mask)
+                action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
 
@@ -53,6 +54,7 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
 
 
 if __name__ == '__main__':
-    players = [RandomAgent(), ChooseFirstActionAgent()]
+    state_db_path = '../agents/UnbeatableClassicTTTAgent/state_db.json'
+    players = [UnbeatableClassicTTTAgent(state_db_path), RandomAgent()]
     env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
-    play(env, players)
+    play(env, players, n_games=1000)

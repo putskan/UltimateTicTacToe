@@ -8,7 +8,7 @@ from environments.board import Board
 from pettingzoo.utils import agent_selector, wrappers
 
 from environments.board_renderer import BoardRenderer
-from environments.piece import Piece
+from utils.piece import Piece
 
 
 def env(render_mode: str = None, depth: int = 1, render_fps: int = 10) -> AECEnv:
