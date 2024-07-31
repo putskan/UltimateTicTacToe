@@ -1,7 +1,7 @@
 import logging
 
 
-def get_logger(log_name, log_file_name, log_to_console=False):
+def get_logger(log_name: str, log_file_name: str, log_to_console: bool = False) -> logging.Logger:
     """
     Create and configure a logger
     :param log_name: The log name
