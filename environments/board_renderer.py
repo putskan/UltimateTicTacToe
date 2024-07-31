@@ -100,9 +100,12 @@ class BoardRenderer:
         render the board to screen
         :param board: numpy array of shape (3, ..., 3) (even number of dimensions). Each entry should be if enum Piece
         """
-        self.screen.fill(self.BG_COLOR)
         assert board.ndim % 2 == 0
         depth = board.ndim // 2
+        if depth > 5:
+            raise ValueError("Can't render boards which are too deep")
+
+        self.screen.fill(self.BG_COLOR)
         self.draw_sub_board(self.screen, board, (0, 0), (self.height, self.width),
                             line_width=self.LINE_WIDTH, padding=self.PADDING // depth)
         pygame.display.update()
