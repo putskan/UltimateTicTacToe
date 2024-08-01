@@ -80,7 +80,7 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             if done:
                 action = None
             else:
-                action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
+                action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask, info)
                 players_last_decision[curr_player_idx] = dict(observation=observation,
                                                               action=action,
                                                               action_mask=action_mask,

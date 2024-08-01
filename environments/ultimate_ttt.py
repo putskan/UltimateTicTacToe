@@ -11,7 +11,7 @@ from environments.board_renderer import BoardRenderer
 from utils.piece import Piece
 
 
-def env(render_mode: str = None, depth: int = 1, render_fps: int = 10) -> AECEnv:
+def env(render_mode: str = None, depth: int = 2, render_fps: int = 10) -> AECEnv:
     env = raw_env(render_mode=render_mode, depth=depth, render_fps=render_fps)
     if render_mode == 'ansi':
         env = wrappers.CaptureStdoutWrapper(env)
@@ -63,7 +63,7 @@ class raw_env(AECEnv):
         self.rewards = {i: 0 for i in self.agents}
         self.terminations = {i: False for i in self.agents}
         self.truncations = {i: False for i in self.agents}
-        self.infos = {i: {} for i in self.agents}
+        self.infos = {i: {'forced_boards': self.forced_boards} for i in self.agents}
 
         self._agent_selector = agent_selector(self.agents)
         self.agent_selection = self._agent_selector.reset()
@@ -82,7 +82,7 @@ class raw_env(AECEnv):
         curr_piece_board = board_vals == curr_player_piece
         opponent_piece_board = board_vals == opponent_player_piece
 
-        observation = np.stack([curr_piece_board, opponent_piece_board], axis=2 * self.depth + 1).astype(np.int8)
+        observation = np.stack([curr_piece_board, opponent_piece_board], axis=2 * self.depth).astype(np.int8)
 
         legal_moves = self._legal_moves() if agent == self.agent_selection else np.array([])
         action_mask = legal_moves.flatten().astype(np.int8)
@@ -122,6 +122,9 @@ class raw_env(AECEnv):
                 self.forced_boards[i - 2] = slice(None)
             else:
                 break
+
+        for k in self.infos:
+            self.infos[k]['forced_boards'] = self.forced_boards
 
     def step(self, action: int):
         if (
@@ -197,7 +200,6 @@ if __name__ == '__main__':
         environment.step(action)
         curr_player_idx = (curr_player_idx + 1) % 2
 
-    environment.render()
     is_draw = cumulative_rewards[0] == cumulative_rewards[1]
     if is_draw:
         print('Draw!')
@@ -205,5 +207,7 @@ if __name__ == '__main__':
         winner = np.argmax(cumulative_rewards).item()
         print(f'Player {winner + 1} wins!')
 
+    environment.render()
     time.sleep(10)
+
     environment.close()

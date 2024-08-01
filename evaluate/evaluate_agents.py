@@ -10,6 +10,7 @@ from pettingzoo import AECEnv
 
 from agents.agent import Agent
 from agents.choose_first_action_agent import ChooseFirstActionAgent
+from agents.hierarchical_agent import HierarchicalAgent
 from agents.random_agent import RandomAgent
 from pettingzoo.classic import tictactoe_v3
 from tqdm import tqdm
@@ -43,7 +44,7 @@ def play_single_game(env: AECEnv, players: Tuple[Agent, Agent]) -> Tuple[float, 
         if done:
             action = None
         else:
-            action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask)
+            action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask, info)
         env.step(action)
         curr_player_idx = (curr_player_idx + 1) % len(players)
 
@@ -130,11 +131,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
-    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
-    players = [RandomAgent("random1"), ChooseFirstActionAgent("choose1"),
-               RandomAgent("random2"), ChooseFirstActionAgent("choose2"),
-               # UnbeatableClassicTTTAgent(agent_name='unbeatable1'), UnbeatableClassicTTTAgent(agent_name='unbeatable2'),
-               ]
+    env = ultimate_ttt.env(render_mode=None, depth=3)  # 'human', 'rgb_array', 'ansi', None
+    players = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent()]
 
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
