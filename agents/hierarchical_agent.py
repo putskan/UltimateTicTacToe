@@ -38,7 +38,6 @@ class HierarchicalAgent(Agent):
             draw_mask = np.all(obs.sum(axis=-1) != 0, axis=np_all_axis)
             curr_agent_win_mask = np.all(obs[..., 0] != 0, axis=np_all_axis)
             opponent_agent_win_mask = np.all(obs[..., 1] != 0, axis=np_all_axis)
-            assert opponent_agent_win_mask.shape == (3, 3)  # TODO: remove
 
             pieces = [Piece.X.value, Piece.O.value]
             board[draw_mask] = Piece.UNAVAILABLE.value
