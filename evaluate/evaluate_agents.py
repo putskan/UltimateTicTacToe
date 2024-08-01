@@ -131,11 +131,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
-    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
-    players = [RandomAgent(), ChooseFirstActionAgent(),
-               # UnbeatableClassicTTTAgent(agent_name='unbeatable1'), UnbeatableClassicTTTAgent(agent_name='unbeatable2'),
-               HierarchicalAgent(),
-               ]
+    env = ultimate_ttt.env(render_mode=None, depth=3)  # 'human', 'rgb_array', 'ansi', None
+    players = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent()]
 
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"

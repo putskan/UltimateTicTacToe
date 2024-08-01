@@ -20,6 +20,9 @@ class UnbeatableClassicTTTAgent(Agent):
         with open(db_path, 'rb') as f:
             self.db = json.load(f)
 
+    def get_best_action(self, position: np.ndarray, player_idx: int):
+        return get_best_action(position, player_idx, self.db)
+
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
              curr_agent_str: str, action_mask: Optional[np.ndarray],
              info: Dict[str, Any]) -> Any:
@@ -37,6 +40,6 @@ class UnbeatableClassicTTTAgent(Agent):
 
         board[obs[..., 0] != 0] = player_piece
         board[obs[..., 1] != 0] = opponent_piece
-        action, _ = get_best_action(board, curr_agent_idx, self.db)
+        action, _ = self.get_best_action(board, curr_agent_idx)
         flattened_action = action[0] * 3 + action[1]
         return flattened_action

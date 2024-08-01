@@ -7,6 +7,7 @@ from pettingzoo import AECEnv
 
 from agents.agent import Agent
 from agents.unbeatable_classic_ttt_agent.unbeatable_classic_ttt_agent import UnbeatableClassicTTTAgent
+from utils.piece import Piece
 
 _DEFAULT_DB_PATH = Path(__file__).resolve().parent / 'unbeatable_classic_ttt_agent' / 'state_db.json'
 
@@ -32,28 +33,28 @@ class HierarchicalAgent(Agent):
 
         else:
             assert obs.shape[-1] == 2
-            board = np.full((3, 3, 2), 0)
+            board = np.full((3, 3), Piece.EMPTY.value)
             np_all_axis = tuple(range(2, obs.ndim - 1))
+            draw_mask = np.all(obs.sum(axis=-1) != 0, axis=np_all_axis)
             curr_agent_win_mask = np.all(obs[..., 0] != 0, axis=np_all_axis)
             opponent_agent_win_mask = np.all(obs[..., 1] != 0, axis=np_all_axis)
-            assert curr_agent_win_mask.shape == (3, 3)  # TODO: remove
             assert opponent_agent_win_mask.shape == (3, 3)  # TODO: remove
-            board[curr_agent_win_mask, 0] = 1
-            board[opponent_agent_win_mask, 1] = 1
-            outer_action_flattened = self.classic_ttt_agent.play(env, board, curr_agent_idx,
-                                                                 curr_agent_str, None, info)
-            outer_action = np.unravel_index(outer_action_flattened, (3, 3))
+
+            pieces = [Piece.X.value, Piece.O.value]
+            board[draw_mask] = Piece.UNAVAILABLE.value
+            board[curr_agent_win_mask] = pieces[curr_agent_idx]
+            board[opponent_agent_win_mask] = pieces[1 - curr_agent_idx]
+            outer_action = self.classic_ttt_agent.get_best_action(board, curr_agent_idx)[0]
 
         if obs.ndim > 3:
             # recursively get the inner actions
             if forced_boards is not None:
                 info = copy.deepcopy(info)
                 info['forced_boards'] = forced_boards[2:]
-            recursion_action_flattened = self.play(env, obs[*outer_action], curr_agent_idx,
-                                                   curr_agent_str, None, info)
+            recursion_action_flattened = self.play(env, obs[*outer_action], curr_agent_idx, curr_agent_str, None, info)
             recursion_action = np.unravel_index(recursion_action_flattened, list(obs.shape)[2: -1])
         else:
             recursion_action = tuple()
 
-        flattened_action = np.ravel_multi_index(list(outer_action) + list(recursion_action), list(obs.shape)[:-1])
+        flattened_action = np.ravel_multi_index(list(outer_action) + list(recursion_action), obs.shape[:-1])
         return flattened_action

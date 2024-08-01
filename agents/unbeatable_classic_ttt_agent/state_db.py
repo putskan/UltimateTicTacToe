@@ -31,7 +31,8 @@ def get_best_action(position: np.ndarray, player_idx: int, database: Database,
         return database[hashed_position]
 
     assert winning_combinations is not None, 'Database is not full, must provide winning_combinations'
-    winner = check_for_winner_classic(position, winning_combinations)
+    position_wo_unavailable = np.where(position != Piece.UNAVAILABLE.value, position, Piece.EMPTY.value)
+    winner = check_for_winner_classic(position_wo_unavailable, winning_combinations)
     if winner != -1:
         score = 1 if winner == player_idx_piece else -1
         return (0, 0), score
@@ -59,20 +60,26 @@ def get_best_action(position: np.ndarray, player_idx: int, database: Database,
     return best_action, best_action_score
 
 
-def create_state_database() -> Database:
+def create_state_database(use_unavailable_piece_type: bool = True) -> Database:
     """
     Using dynamic programming, goes over all possible (and not possible) positions,
     and finds the best move save them to dict of {state_hash: Tuple[best_move, best_move_score]}
     where state_hash is a hash created by the position and the player turn.
     best_move_score is wrt the current agent (1 if it is winning, -1 losing, 0 draw)
+
+    :param use_unavailable_piece_type: pass True to use as a component of an ultimate-TTT agent.
+                                        (this is needed for sub-boards that ended in a draw)
+                                        For classic 3x3, pass False
     :return: the database dictionary
     """
     database = {}
     winning_combinations = calculate_winning_combinations()
     pieces = [Piece.EMPTY.value, Piece.X.value, Piece.O.value]
+    if use_unavailable_piece_type:
+        pieces.append(Piece.UNAVAILABLE.value)
     mesh = np.array(np.meshgrid(pieces, pieces, pieces, pieces, pieces, pieces, pieces, pieces, pieces))
     all_positions = mesh.T.reshape(-1, 3, 3)
-    assert all_positions.shape == (3 ** 9, 3, 3)
+    assert all_positions.shape == (len(pieces) ** 9, 3, 3)
 
     for free_cells in tqdm(range(0, 10)):
         curr_positions = all_positions[np.sum(all_positions == Piece.EMPTY.value, axis=(1, 2)) == free_cells]
@@ -91,7 +98,8 @@ if __name__ == '__main__':
     dst_path = './state_db.json'
     database = create_state_database()
     with open(dst_path, 'w') as f:
-        json.dump(database, f, indent=4)
+        json.dump(database, f)
 
+    # to load it back use:
     with open(dst_path, 'r') as f:
         loaded_database = json.load(f)
