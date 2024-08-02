@@ -90,23 +90,25 @@ def calc_new_elo_rating(rating1: float, rating2: float, score1: float, score2: f
     return new_rating1, new_rating2
 
 
-def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_games: int = 1000) -> None:
+def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_rounds: int = 1000) -> None:
     """
     Run games between the agents and assess their performance
     :param env: env to play in
     :param agents: list of agents to evaluate
     :param logger: logger to log results. if None, default logger is created and logs only to console
-    :param n_games: number of games to play.
-                    for n_games=n and len(agents)=k, we play n * (k * (k-1)) games
+    :param n_rounds: number of rounds to play.
+                    for n_rounds=n and len(agents)=k, we play n * (k * (k-1)) games
     """
     if logger is None:
         logger = get_logger("evaluate_agents", log_file_name=None, log_to_console=True)
 
+    logger.info(f'n_rounds={n_rounds}, n_agents={len(agents)}, '
+                f'total_games={n_rounds * len(agents) * (len(agents) - 1)}')
     player_win = Counter()
     player_elo_rating = {agent: INITIAL_ELO_RATE for agent in agents}
 
     all_agent_pairs = list(permutations(agents, 2))
-    for _ in tqdm(range(n_games)):
+    for _ in tqdm(range(n_rounds)):
         for agent1, agent2 in all_agent_pairs:
             score1, score2 = play_single_game(env, (agent1, agent2))
 
@@ -122,7 +124,7 @@ def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_g
 
     # divide by the number of games each player played to get the average winning percentage
     for player in player_win:
-        player_win[player] /= 2 * (len(agents) - 1) * n_games
+        player_win[player] /= 2 * (len(agents) - 1) * n_rounds
     assert sum(player_win.values()) == len(agents) / 2
 
     # log results

@@ -139,4 +139,4 @@ if __name__ == '__main__':
         AlphaBeta(depth=1, evaluation_function=SubBoardsWon(), shuffle_move_order=True),
         HierarchicalAgent(),
     ]
-    evaluate_agents.evaluate_agents(env, agents=agents, n_games=20)
+    evaluate_agents.evaluate_agents(env, agents=agents, n_rounds=20)
