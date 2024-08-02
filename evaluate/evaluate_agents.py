@@ -89,14 +89,17 @@ def calc_new_elo_rating(rating1: float, rating2: float, score1: float, score2: f
     return new_rating1, new_rating2
 
 
-def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger, n_games: int = 1000) -> None:
+def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_games: int = 1000) -> None:
     """
     Evaluates each agent by the percentage of winning games (or draws) against the other agents
     :param env: env to play in
     :param agents: list of agents to evaluate
-    :param logger: logger to log results
+    :param logger: logger to log results. if None, default logger is created and logs only to console
     :param n_games: number of games to play
     """
+    if logger is None:
+        logger = get_logger("evaluate_agents", log_file_name=None, log_to_console=True)
+
     player_win = Counter()
     player_elo_rating = {agent: INITIAL_ELO_RATE for agent in agents}
 
