@@ -136,8 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
-    # env = tictactoe_v3.env(render_mode=None)  # 'human', 'rgb_array', 'ansi', None
-    env = ultimate_ttt.env(render_mode=None, depth=3)  # 'human', 'rgb_array', 'ansi', None
+    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
     players = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent()]
 
     os.makedirs('logs', exist_ok=True)
