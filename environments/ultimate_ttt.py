@@ -11,8 +11,11 @@ from environments.board_renderer import BoardRenderer
 from utils.piece import Piece
 
 
-def env(render_mode: str = None, depth: int = 2, render_fps: int = 10) -> AECEnv:
-    env = raw_env(render_mode=render_mode, depth=depth, render_fps=render_fps)
+DEFAULT_CAPTION = 'Ultimate Tic-Tac-Toe'
+
+
+def env(render_mode: str = None, depth: int = 2, render_fps: int = 10, caption: str = DEFAULT_CAPTION) -> AECEnv:
+    env = raw_env(render_mode=render_mode, depth=depth, render_fps=render_fps, caption=caption)
     if render_mode == 'ansi':
         env = wrappers.CaptureStdoutWrapper(env)
 
@@ -30,11 +33,11 @@ class raw_env(AECEnv):
     }
 
     def __init__(self, render_mode: str | None = None,
-                 depth: int = 1, render_fps: int = 10):
+                 depth: int = 1, render_fps: int = 10, caption: str = DEFAULT_CAPTION):
         super().__init__()
         self.render_fps = render_fps
         if render_mode is not None:
-            self.board_renderer = BoardRenderer(render_fps=self.render_fps)
+            self.board_renderer = BoardRenderer(render_fps=self.render_fps, caption=caption)
         self.depth = depth
         self.board = Board(depth=depth)
         self.forced_boards = None

@@ -20,7 +20,6 @@ class BoardRenderer:
 
     def __init__(self, caption: str = 'Ultimate Tic-Tac-Toe', width: int = 729,
                  height: int = 729, render_fps: int = 1) -> None:
-        self.caption = caption
         self.width = width
         self.height = height
         self.render_fps = render_fps
@@ -28,6 +27,7 @@ class BoardRenderer:
         pygame.init()
         self.screen = pygame.display.set_mode((width, height))
         self.clock = pygame.time.Clock()
+        pygame.display.set_caption(caption)
 
     @staticmethod
     def draw_sub_board(screen: pygame.Surface,
