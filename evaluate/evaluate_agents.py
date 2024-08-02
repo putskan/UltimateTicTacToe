@@ -55,7 +55,8 @@ def play_single_game(env: AECEnv, players: Tuple[Agent, Agent]) -> Tuple[float, 
     return score1, score2
 
 
-def log_final_results(logger: Logger, title: str, final_results: List[Tuple[str, float]], use_percentage: bool = False) -> None:
+def log_final_results(logger: Logger, title: str, final_results: List[Tuple[str, float]],
+                      use_percentage: bool = False) -> None:
     """
     Logs the final results of the evaluation
     :param logger: logger to log results
@@ -95,7 +96,8 @@ def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_g
     :param env: env to play in
     :param agents: list of agents to evaluate
     :param logger: logger to log results. if None, default logger is created and logs only to console
-    :param n_games: number of games to play
+    :param n_games: number of games to play.
+                    for n_games=n and len(agents)=k, we play n * (k * (k-1)) games
     """
     if logger is None:
         logger = get_logger("evaluate_agents", log_file_name=None, log_to_console=True)
@@ -103,8 +105,9 @@ def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_g
     player_win = Counter()
     player_elo_rating = {agent: INITIAL_ELO_RATE for agent in agents}
 
+    all_agent_pairs = list(permutations(agents, 2))
     for _ in tqdm(range(n_games)):
-        for agent1, agent2 in permutations(agents, 2):
+        for agent1, agent2 in all_agent_pairs:
             score1, score2 = play_single_game(env, (agent1, agent2))
 
             # update win count of each player
