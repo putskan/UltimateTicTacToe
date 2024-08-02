@@ -178,7 +178,8 @@ class raw_env(AECEnv):
         pass
 
     def render(self):
-        self.board_renderer.render(self.board.squares)
+        if self.board_renderer is not None:
+            self.board_renderer.render(self.board.squares)
 
 
 if __name__ == '__main__':
