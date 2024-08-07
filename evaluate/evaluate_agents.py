@@ -99,11 +99,6 @@ def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_r
     :param n_rounds: number of rounds to play.
                     for n_rounds=n and len(agents)=k, we play n * (k * (k-1)) games
     """
-    if logger is None:
-        logger = get_logger("evaluate_agents", log_file_name=None, log_to_console=True)
-
-    logger.info(f'n_rounds={n_rounds}, n_agents={len(agents)}, '
-                f'total_games={n_rounds * len(agents) * (len(agents) - 1)}')
     player_win = Counter()
     player_elo_rating = {agent: INITIAL_ELO_RATE for agent in agents}
 
@@ -128,6 +123,11 @@ def evaluate_agents(env: AECEnv, agents: List[Agent], logger: Logger = None, n_r
     assert sum(player_win.values()) == len(agents) / 2
 
     # log results
+    if logger is None:
+        logger = get_logger("evaluate_agents", log_file_name=None, log_to_console=True)
+
+    logger.info(f'n_rounds={n_rounds}, n_agents={len(agents)}, '
+                f'total_games={n_rounds * len(agents) * (len(agents) - 1)}')
     sorted_elo_ratings = sorted(player_elo_rating.items(), key=lambda item: item[1], reverse=True)
     log_final_results(logger, "Winning Percentage", player_win.most_common(), use_percentage=True)
     log_final_results(logger, "Elo Rating", sorted_elo_ratings)
