@@ -1,7 +1,8 @@
 import logging
+import os
 
 
-def get_logger(log_name: str, log_file_name: str = None, log_to_console: bool = False) -> logging.Logger:
+def get_logger(log_name: str, log_dir_name: str = None, log_to_console: bool = False) -> logging.Logger:
     """
     Create and configure a logger
     :param log_name: The log name
@@ -9,7 +10,7 @@ def get_logger(log_name: str, log_file_name: str = None, log_to_console: bool = 
     :param log_to_console: Whether to log to console
     :return Configured logger
     """
-    assert log_to_console or log_file_name, 'Must provide at least one of log_to_console, log_file_name'
+    assert log_to_console or log_dir_name, 'Must provide at least one of log_to_console, log_dir_name'
     # Create a custom logger
     logger = logging.getLogger(f'{log_name}_logger')
     logger.setLevel(logging.INFO)
@@ -18,7 +19,9 @@ def get_logger(log_name: str, log_file_name: str = None, log_to_console: bool = 
     if not logger.handlers:
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         # Create file handler
-        if log_file_name is not None:
+        if log_dir_name is not None:
+            os.makedirs(log_dir_name, exist_ok=True)
+            log_file_name = os.path.join(log_dir_name, f'{log_name}.log')
             file_handler = logging.FileHandler(log_file_name, mode='w')
             file_handler.setLevel(logging.INFO)
             # Create formatter and add it to the handlers
