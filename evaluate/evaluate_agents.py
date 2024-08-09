@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from typing import List, Tuple
 from itertools import permutations
-from collections import Counter
 from logging import Logger
 import datetime
 import argparse
@@ -12,7 +11,6 @@ import seaborn as sns
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-
 
 from pettingzoo import AECEnv
 
@@ -33,8 +31,18 @@ s = 400
 INITIAL_ELO_RATE = 1200
 
 
-class AgentEvaluator:
+class AgentsEvaluator:
+    """
+    Class to evaluate agents' performance by playing multiple rounds of games
+    """
     def __init__(self, agents: List[Agent], env: AECEnv, logger: Logger = None, n_rounds: int = 1000):
+        """
+        :param agents: list of agents to evaluate
+        :param env: env to play in
+        :param logger: logger to log results. if None, default logger is created and logs only to console
+        :param n_rounds: number of rounds to play.
+                        for n_rounds=n and len(agents)=k, we play n * (k * (k-1)) games
+        """
         n_agents = len(agents)
         if logger is None:
             logger = get_logger("evaluate_agents", log_dir_name=None, log_to_console=True)
@@ -50,7 +58,6 @@ class AgentEvaluator:
     def play_single_game(self, players: Tuple[Agent, Agent]) -> Tuple[float, float]:
         """
         play n_games between the players and print the results
-        :param env: env to play in
         :param players: 2 players to play the game
         :return: results of the games - score for each player: win - 1, draw - 0.5, lose - 0
         """
@@ -79,9 +86,9 @@ class AgentEvaluator:
     def log_final_results(self, title: str, final_results: List[Tuple[str, float]], use_percentage: bool = False) -> None:
         """
         Logs the final results of the evaluation
-        :param logger: logger to log results
         :param title: title of the results
-        :param final_results: list of tuples containing the agent name and the winning percentage, sorted by winning percentage
+        :param final_results: list of tuples containing the agent name and the result, sorted results
+        :param use_percentage: whether to print the results as a percentage or not
         """
         self.logger.info("************************************")
         self.logger.info(f"Final {title} Results:")
@@ -112,11 +119,6 @@ class AgentEvaluator:
     def evaluate_agents(self) -> None:
         """
         Run games between the agents and assess their performance
-        :param env: env to play in
-        :param agents: list of agents to evaluate
-        :param logger: logger to log results. if None, default logger is created and logs only to console
-        :param n_rounds: number of rounds to play.
-                        for n_rounds=n and len(agents)=k, we play n * (k * (k-1)) games
         """
         n_agents = len(self.agents)
         all_agent_pairs = list(permutations(range(n_agents), 2))
@@ -150,14 +152,22 @@ class AgentEvaluator:
 
     @property
     def log_folder(self):
+        """
+        :return: the folder of the logger, if exists
+        """
         for handler in self.logger.handlers:
             if hasattr(handler, 'baseFilename'):
                 return Path(handler.baseFilename).parent
 
     def plot_results(self, save_plot: bool = True) -> None:
-        # Creating a DataFrame for each matrix for better visualization
+        """
+        Plots the results as 3 heatmaps of wins, loses and draws.
+        Optionally also saves the plots to the logger's folder.
+        :param save_plot: whether to save the plot or not
+        """
         draws = (2 * self.n_rounds) - (self.wins + self.wins.T)
         draws[np.eye(len(draws), dtype=bool)] = 0
+        # Creating a DataFrame for each matrix for better visualization
         wins_df = pd.DataFrame(self.wins, index=self.agents, columns=self.agents)
         losses_df = pd.DataFrame(self.wins.T, index=self.agents, columns=self.agents)
         draws_df = pd.DataFrame(draws, index=self.agents, columns=self.agents)
@@ -177,6 +187,7 @@ class AgentEvaluator:
         sns.heatmap(draws_df, annot=True, fmt="d", cmap="Greens", cbar=False)
         plt.title('Draws')
 
+        plt.suptitle(f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)', fontsize=14)
         plt.tight_layout()
 
         if self.log_folder and save_plot:
@@ -190,10 +201,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
-    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), RandomAgent("rand"), ChooseFirstActionAgent("choose")]
+    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent()]
 
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=args.log_to_console)
-    agent_evaluator = AgentEvaluator(agents, env, logger=None, n_rounds=100)
-    agent_evaluator.evaluate_agents()
+    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=100)
+    agents_evaluator.evaluate_agents()
