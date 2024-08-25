@@ -26,12 +26,7 @@ class Board:
         if sub_board.ndim == 2:
             sub_board = sub_board[..., np.newaxis]
 
-        np_all_axis = tuple(range(2, sub_board.ndim))
-        player_1_win_mask = np.all(sub_board == Piece.X.value, axis=np_all_axis)
-        player_2_win_mask = np.all(sub_board == Piece.O.value, axis=np_all_axis)
-        classic_board = np.zeros((3, 3))
-        classic_board[player_1_win_mask] = Piece.X.value
-        classic_board[player_2_win_mask] = Piece.O.value
+        classic_board = self.convert_board_to_3x3(sub_board)
         classic_board_winner = check_for_winner_classic(classic_board, self.winning_combinations)
         return classic_board_winner
 
@@ -74,6 +69,26 @@ class Board:
             return True
         else:
             return False
+
+    @staticmethod
+    def convert_board_to_3x3(board: np.ndarray,
+                             player_1_piece: float = Piece.X.value,
+                             player_2_piece: float = Piece.O.value) -> np.ndarray:
+        """
+        convert a board to a 3x3 board (show a cell as empty if it's not terminated yet)
+        :param board: a board of shape (3, ..., 3), or (3, 3, 1)
+        :param player_1_piece: piece for player 1, as in the board
+        :param player_2_piece: piece for player 2, as in the board
+        :return: 3x3 board
+        """
+        assert np.all(np.array(board.shape) == 3) or board.shape == (3, 3, 1)
+        np_all_axis = tuple(range(2, board.ndim))
+        player_1_win_mask = np.all(board == player_1_piece, axis=np_all_axis)
+        player_2_win_mask = np.all(board == player_2_piece, axis=np_all_axis)
+        classic_board = np.zeros((3, 3))
+        classic_board[player_1_win_mask] = player_1_piece
+        classic_board[player_2_win_mask] = player_2_piece
+        return classic_board
 
     def __str__(self):
         return str(self.squares)
