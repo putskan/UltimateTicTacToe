@@ -1,7 +1,10 @@
+import copy
 from typing import Any, List
 
 import numpy as np
 import pickle
+
+from pettingzoo import AECEnv
 
 from utils.piece import Piece
 
@@ -85,3 +88,22 @@ def check_for_winner_classic(three_on_three_board: np.ndarray,
         if all(x == Piece.O.value for x in states):
             winner = Piece.O.value
     return winner
+
+
+def deepcopy_env(env: AECEnv) -> AECEnv:
+    """
+    copy all attributes but 'board_renderer' (not pickleable)
+    :param env: environment to copy
+    :return: a deep copy of the environment
+    """
+    unwrapped_env = getattr(env, 'unwrapped', env)
+    board_renderer = getattr(unwrapped_env, 'board_renderer', None)
+    if board_renderer is not None:
+        unwrapped_env.board_renderer = None
+
+    copied_env = copy.deepcopy(env)
+
+    if board_renderer is not None:
+        unwrapped_env.board_renderer = board_renderer
+
+    return copied_env
