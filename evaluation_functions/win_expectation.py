@@ -23,11 +23,11 @@ class ProbabilisticEstimator(EvaluationFunction):
     """
     _POSSIBLE_WIN_SEQUENCES = [(0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7), (2, 5, 8), (0, 4, 8), (2, 4, 6)]
     _DEFAULT_DEPTH_ZERO_PROBABILITY_ESTIMATIONS = frozendict({
-        (1, -1): (0.55, 0.25),
-        (-1, 1): (0.25, 0.55),
-        (1, 0): (0.45, 0.35),
-        (0, 1): (0.35, 0.45),
-        None: (0.35, 0.35),
+        (1, -1): (0.75, 0.15),
+        (-1, 1): (0.15, 0.75),
+        (1, 0): (0.55, 0.25),
+        (0, 1): (0.25, 0.55),
+        None: (0.15, 0.15),
     })
 
     def __init__(self, depth: int = 100, reduction_method: Literal['sum', 'probabilistic'] = 'probabilistic',
@@ -104,7 +104,6 @@ class ProbabilisticEstimator(EvaluationFunction):
         if depth == 0:
             # approximate the chance for each side to win.
             # can't know for sure because a player can have consecutive turns
-            # TODO: tune those params
             if (my_score, opponent_score) in self.depth_zero_probability_estimations:
                 return self.depth_zero_probability_estimations[(my_score, opponent_score)]
             return self.depth_zero_probability_estimations[None]
