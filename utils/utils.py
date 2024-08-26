@@ -71,7 +71,7 @@ def check_for_winner_classic(three_on_three_board: np.ndarray,
     for a 3x3 board, return the winner, or -1 if there's no winner
     :param three_on_three_board: numpy array of shape (3, 3)
     :param winning_combinations: received from calculate_winning_combinations function
-    :return: the winner number
+    :return: the winner number, -1 otherwise
     """
     assert three_on_three_board.shape == (3, 3)
     flattened_board = three_on_three_board.flatten().tolist()

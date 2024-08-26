@@ -15,12 +15,20 @@ class UnbeatableClassicTTTAgent(Agent):
     an agent that always wins the classic 3x3 tic-tac-toe
     uses a db of all possible positions
     """
-    def __init__(self, db_path: Union[Path, str] = Path(__file__).resolve().parent / 'state_db.json', *args, **kwargs):
+    DEFAULT_DB_PATH = Path(__file__).resolve().parent / 'state_db.json'
+
+    def __init__(self, db_path: Union[Path, str] = DEFAULT_DB_PATH, *args, **kwargs):
         super().__init__(*args, **kwargs)
         with open(db_path, 'rb') as f:
             self.db = json.load(f)
 
     def get_best_action(self, position: np.ndarray, player_idx: int):
+        """
+        get best_action, score
+        :param position: current board position
+        :param player_idx: player idx to play
+        :return:
+        """
         return get_best_action(position, player_idx, self.db)
 
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
