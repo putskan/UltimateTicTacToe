@@ -10,9 +10,12 @@ from agents.hierarchical_agent import HierarchicalAgent
 from agents.random_agent import RandomAgent
 from environments import ultimate_ttt
 from evaluate import evaluate_agents
+from evaluate.evaluate_agents import AgentsEvaluator
+from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
 from evaluation_functions.constant_evaluation import ConstantEvaluation
 from evaluation_functions.evaluation_function import EvaluationFunction
 from evaluation_functions.sub_boards_won import SubBoardsWon
+from evaluation_functions.win_expectation import ProbabilisticEstimator
 from utils.utils import get_action_mask
 
 DEFAULT_SCORES_ON_GAME_OVER = (float('inf'), 0)  # win, tie
@@ -133,10 +136,26 @@ class AlphaBeta(Agent):
 
 
 if __name__ == '__main__':
-    env = ultimate_ttt.env(render_mode=None, depth=2)
+    env = ultimate_ttt.env(render_mode=None, depth=2, render_fps=10)
+
     agents = [
-        AlphaBeta(depth=1, evaluation_function=ConstantEvaluation(), shuffle_move_order=True),
-        AlphaBeta(depth=1, evaluation_function=SubBoardsWon(), shuffle_move_order=True),
+        AlphaBeta(depth=2, evaluation_function=SubBoardsWon(), shuffle_move_order=True, agent_name='AB2_SBW'),
+
+        AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator(depth=3, reduction_method='probabilistic'),
+                  shuffle_move_order=True,
+                  agent_name='AB2_ProbabilisticEstimator3_prob'),
+
+
+        AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator(depth=3, reduction_method='sum'),
+                  shuffle_move_order=True,
+                  agent_name='AB2_ProbabilisticEstimator3_sum'),
+
+        AlphaBeta(depth=3, evaluation_function=AEWinningPossibilities(),
+                  shuffle_move_order=True,
+                  agent_name='AB2_AE_WP'),
+
         HierarchicalAgent(),
     ]
-    evaluate_agents.evaluate_agents(env, agents=agents, n_rounds=20)
+
+    agents_evaluator = AgentsEvaluator(agents, env, n_rounds=15)
+    agents_evaluator.evaluate_agents()
