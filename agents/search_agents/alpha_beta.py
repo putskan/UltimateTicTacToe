@@ -9,7 +9,6 @@ from agents.agent import Agent
 from agents.hierarchical_agent import HierarchicalAgent
 from agents.random_agent import RandomAgent
 from environments import ultimate_ttt
-from evaluate import evaluate_agents
 from evaluation_functions.constant_evaluation import ConstantEvaluation
 from evaluation_functions.evaluation_function import EvaluationFunction
 from evaluation_functions.sub_boards_won import SubBoardsWon
@@ -114,10 +113,13 @@ class AlphaBeta(Agent):
 
 
 if __name__ == '__main__':
+    from evaluate.evaluate_agents import AgentsEvaluator
+
     env = ultimate_ttt.env(render_mode=None, depth=2)
     agents = [
         AlphaBeta(depth=1, evaluation_function=ConstantEvaluation(), shuffle_move_order=True),
         AlphaBeta(depth=1, evaluation_function=SubBoardsWon(), shuffle_move_order=True),
         HierarchicalAgent(),
     ]
-    evaluate_agents.evaluate_agents(env, agents=agents, n_rounds=20)
+    agents_evaluator = AgentsEvaluator(agents, env, logger=None, n_rounds=20)
+    agents_evaluator.evaluate_agents()
