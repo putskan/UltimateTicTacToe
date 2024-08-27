@@ -15,7 +15,7 @@ from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
 from evaluation_functions.constant_evaluation import ConstantEvaluation
 from evaluation_functions.evaluation_function import EvaluationFunction
 from evaluation_functions.sub_boards_won import SubBoardsWon
-from evaluation_functions.win_expectation import ProbabilisticEstimator
+from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
 from utils.utils import get_action_mask
 
 DEFAULT_SCORES_ON_GAME_OVER = (float('inf'), 0)  # win, tie
@@ -146,11 +146,11 @@ if __name__ == '__main__':
                   agent_name='AB2_ProbabilisticEstimator3_prob'),
 
 
-        AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator(depth=3, reduction_method='sum'),
+        AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator(depth=3, reduction_method='mean'),
                   shuffle_move_order=True,
-                  agent_name='AB2_ProbabilisticEstimator3_sum'),
+                  agent_name='AB2_ProbabilisticEstimator3_mean'),
 
-        AlphaBeta(depth=3, evaluation_function=AEWinningPossibilities(),
+        AlphaBeta(depth=2, evaluation_function=AEWinningPossibilities(),
                   shuffle_move_order=True,
                   agent_name='AB2_AE_WP'),
 
