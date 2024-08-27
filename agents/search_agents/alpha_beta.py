@@ -1,22 +1,17 @@
-import copy
 from typing import Any, Optional, Dict, Tuple
 
 import numpy as np
 from pettingzoo import AECEnv
-from pettingzoo.classic import tictactoe_v3
 
 from agents.agent import Agent
 from agents.hierarchical_agent import HierarchicalAgent
-from agents.random_agent import RandomAgent
 from environments import ultimate_ttt
-from evaluate import evaluate_agents
 from evaluate.evaluate_agents import AgentsEvaluator
 from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
-from evaluation_functions.constant_evaluation import ConstantEvaluation
 from evaluation_functions.evaluation_function import EvaluationFunction
-from evaluation_functions.sub_boards_won import SubBoardsWon
 from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
-from utils.utils import get_action_mask
+from evaluation_functions.sub_boards_won import SubBoardsWon
+from utils.utils import get_action_mask, deepcopy_env
 
 DEFAULT_SCORES_ON_GAME_OVER = (float('inf'), 0)  # win, tie
 
@@ -60,25 +55,6 @@ class AlphaBeta(Agent):
                                          maximizing_player=True, curr_agent_idx=curr_agent_idx)
         return action
 
-    @staticmethod
-    def _deepcopy_env(env: AECEnv) -> AECEnv:
-        """
-        copy all attributes but 'board_renderer' (not pickleable)
-        :param env: environment to copy
-        :return: a deep copy of the environment
-        """
-        unwrapped_env = getattr(env, 'unwrapped', env)
-        board_renderer = getattr(unwrapped_env, 'board_renderer', None)
-        if board_renderer is not None:
-            unwrapped_env.board_renderer = None
-
-        copied_env = copy.deepcopy(env)
-
-        if board_renderer is not None:
-            unwrapped_env.board_renderer = board_renderer
-
-        return copied_env
-
     def _alpha_beta(self, env: AECEnv, curr_depth: int, alpha: float, beta: float,
                     maximizing_player: bool, curr_agent_idx: int) -> Tuple[float, Any]:
         obs, reward, termination, truncation, info = env.last()
@@ -106,7 +82,7 @@ class AlphaBeta(Agent):
             max_eval = -np.inf
             max_action = None
             for action in valid_actions.tolist():
-                curr_env = self._deepcopy_env(env)
+                curr_env = deepcopy_env(env)
                 curr_env.step(action)
                 score, _ = self._alpha_beta(curr_env, curr_depth - 1, alpha, beta, False, 1 - curr_agent_idx)
                 if score >= max_eval:
@@ -122,7 +98,7 @@ class AlphaBeta(Agent):
             min_eval = np.inf
             min_action = None
             for action in valid_actions.tolist():
-                curr_env = copy.deepcopy(env)
+                curr_env = deepcopy_env(env)
                 curr_env.step(action)
                 score, _ = self._alpha_beta(curr_env, curr_depth - 1, alpha, beta, True, 1 - curr_agent_idx)
                 if score <= min_eval:
