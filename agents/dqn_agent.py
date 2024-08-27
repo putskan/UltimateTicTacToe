@@ -52,7 +52,7 @@ class DQNAgent(TrainableAgent):
             action[:, (~action_mask.astype(bool)).tolist()] = -float('inf')
             return action.argmax().item()
 
-    def train_update(self, replay_buffer):
+    def train_update(self, replay_buffer: ReplayBuffer):
         if len(replay_buffer) < self.batch_size:
             return
 

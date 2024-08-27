@@ -5,3 +5,4 @@ gymnasium
 pettingzoo
 tqdm
 torch
+frozendict

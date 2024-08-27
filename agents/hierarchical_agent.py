@@ -9,14 +9,12 @@ from agents.agent import Agent
 from agents.unbeatable_classic_ttt_agent.unbeatable_classic_ttt_agent import UnbeatableClassicTTTAgent
 from utils.piece import Piece
 
-_DEFAULT_DB_PATH = Path(__file__).resolve().parent / 'unbeatable_classic_ttt_agent' / 'state_db.json'
-
 
 class HierarchicalAgent(Agent):
     """
     an agent that chooses a board and delegates the sub-board decision to an unbeatable 3x3 agent
     """
-    def __init__(self, db_path: Union[Path, str] = _DEFAULT_DB_PATH, *args, **kwargs):
+    def __init__(self, db_path: Union[Path, str] = UnbeatableClassicTTTAgent.DEFAULT_DB_PATH, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.classic_ttt_agent = UnbeatableClassicTTTAgent(db_path)
 
