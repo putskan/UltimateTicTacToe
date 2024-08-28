@@ -6,7 +6,7 @@ import numpy as np
 
 Record = namedtuple('record', ['observation', 'action', 'reward',
                                'next_observation', 'done', 'action_mask',
-                               'curr_player_idx', 'next_action_mask'])
+                               'curr_player_idx', 'next_action_mask', 'cumulative_reward'])
 
 
 class ReplayBuffer:
@@ -21,10 +21,11 @@ class ReplayBuffer:
         self.queue = deque(maxlen=size)
 
     def push(self, observation: Any, action: Any, reward: float, next_observation: Any, done: bool,
-             action_mask: np.ndarray, curr_player_idx: int, next_action_mask: np.ndarray):
+             action_mask: np.ndarray, curr_player_idx: int, next_action_mask: np.ndarray, cumulative_reward: float):
         self.queue.append(Record(observation=observation, action=action, reward=reward,
                                  next_observation=next_observation, done=done, action_mask=action_mask,
-                                 curr_player_idx=curr_player_idx, next_action_mask=next_action_mask))
+                                 curr_player_idx=curr_player_idx, next_action_mask=next_action_mask,
+                                 cumulative_reward=cumulative_reward))
 
     def sample(self, num_samples: int) -> List[Record]:
         """
@@ -39,3 +40,6 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.queue)
+
+    def __getitem__(self, idx: int):
+        return self.queue[idx]
