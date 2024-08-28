@@ -59,7 +59,7 @@ class DQNAgent(TrainableAgent):
         batch = replay_buffer.sample(self.batch_size)
 
         (states, actions, rewards, next_states, dones, action_masks,
-         curr_player_idxs, next_action_mask, _) = zip(*batch)
+         curr_player_idxs, next_action_mask, _, _) = zip(*batch)
 
         states = torch.stack([torch.FloatTensor(state['observation']) for state in states]).to(self.device)
         next_states = torch.stack([torch.FloatTensor(next_state['observation']) for next_state in next_states]).to(
