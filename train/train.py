@@ -102,7 +102,8 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
                 episode_buffer.append(dict(observation=observation,
                                            action=action,
                                            action_mask=action_mask,
-                                           curr_player_idx=curr_player_idx))
+                                           curr_player_idx=curr_player_idx,
+                                           t=len(episode_buffer) // 2))
 
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
