@@ -43,7 +43,7 @@ class DQNAgent(TrainableAgent):
 
     def play(self, env, obs, curr_agent_idx, curr_agent_str, action_mask, info: Dict[str, Any]):
         if random.random() <= self.epsilon:
-            return env.action_space(curr_agent_str).sample(action_mask)
+            return env.action_space(curr_agent_str).sample(action_mask).item()
 
         state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
 
@@ -58,7 +58,8 @@ class DQNAgent(TrainableAgent):
 
         batch = replay_buffer.sample(self.batch_size)
 
-        states, actions, rewards, next_states, dones, action_masks, curr_player_idxs, next_action_mask = zip(*batch)
+        (states, actions, rewards, next_states, dones, action_masks,
+         curr_player_idxs, next_action_mask, _) = zip(*batch)
 
         states = torch.stack([torch.FloatTensor(state['observation']) for state in states]).to(self.device)
         next_states = torch.stack([torch.FloatTensor(next_state['observation']) for next_state in next_states]).to(
