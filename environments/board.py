@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 from utils.piece import Piece
@@ -10,6 +12,10 @@ class Board:
         self.board_shape = tuple([3, 3] * depth)
         self.squares = np.full(self.board_shape, fill_value=Piece.EMPTY.value)
         self.winning_combinations = calculate_winning_combinations()
+
+    def __eq__(self, other: Any):
+        if isinstance(other, Board):
+            return np.array_equal(self.squares, other.squares)
 
     def setup(self):
         self.winning_combinations = calculate_winning_combinations()
