@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, Any
 
 import numpy as np
 from gymnasium import spaces
@@ -31,6 +31,12 @@ class raw_env(AECEnv):
         'name': 'ultimate_ttt',
         'is_parallelizable': False,
     }
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, raw_env):
+            return False
+
+        return self.forced_boards == other.forced_boards and self.board == other.board
 
     def __init__(self, render_mode: str | None = None,
                  depth: int = 1, render_fps: int = 10, caption: str = DEFAULT_CAPTION):
