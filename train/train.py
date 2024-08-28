@@ -70,7 +70,6 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
         else:
             players = [random.choice(previous_agents), agent]
 
-        cumulative_reward = [0, 0]
         curr_player_idx = 0
         if curr_game > 0 and curr_game % render_every == 0:
             original_env = env
@@ -81,8 +80,6 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = env.last()
             done = termination or truncation
-
-            cumulative_reward[curr_player_idx] += reward
             action_mask = get_action_mask(observation, info)
 
             if len(episode_buffer) >= 2:  # skip first ones
