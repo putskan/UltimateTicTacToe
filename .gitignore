@@ -1,4 +1,5 @@
 evaluate/logs/*
+train/trained_agents/*
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
