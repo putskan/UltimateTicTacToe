@@ -1,15 +1,15 @@
 import argparse
+from collections import deque
+
 import gymnasium as gym
 import numpy as np
 from itertools import count
-from collections import deque
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.distributions import Categorical
 
+from agents.reinforce_agent import ReinforceAgent
 from models.reinforce import ReinforcePolicy
+from train.train import add_episode_to_replay_buffer
+from utils.replay_buffer import ReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
@@ -27,60 +27,44 @@ env = gym.make('CartPole-v1')
 env.reset(seed=args.seed)
 torch.manual_seed(args.seed)
 
-policy = ReinforcePolicy(4, 2, 128)
-optimizer = optim.Adam(policy.parameters(), lr=1e-2)
+policy = ReinforceAgent(4, 2, 128, learning_rate=1e-3)
 eps = np.finfo(np.float32).eps.item()
 
-
-def select_action(state):
-    state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-    policy_vals = policy(state)
-    probs = F.softmax(policy_vals, dim=-1)
-    m = Categorical(probs)
-    action = m.sample()
-    return action.item(), m.log_prob(action)
-
-
-def finish_episode(rewards, log_probs):
-    R = 0
-    returns = deque()
-    for r in rewards[::-1]:
-        R = r + args.gamma * R
-        returns.appendleft(R)
-    returns = torch.tensor(returns)
-    returns = (returns - returns.mean()) / (returns.std() + eps)
-    log_probs = torch.cat(log_probs)
-    policy_loss = -log_probs * returns
-    policy_loss = policy_loss.sum()
-    optimizer.zero_grad()
-    policy_loss.backward()
-
-    optimizer.step()
-
-
-def main():
+def main(replay_buffer_size: int = 10_000, discount_factor: float = 0.99):
     running_reward = 10
+    replay_buffer = ReplayBuffer(size=replay_buffer_size)
+
     for i_episode in count(1):
         state, _ = env.reset()
+        episode_buffer = []
         ep_reward = 0
-        rewards = []
-        log_probs = []
+        actions = deque(maxlen=20)
         for t in range(1, 10000):  # Don't infinite loop while learning
-            action, log_prob = select_action(state)
+            action_mask = np.ones(2, dtype=np.bool)
+            # TODO: add next observation and next action mask to episode_info correctly
+            episode_info = dict(observation=state, action_mask=action_mask, curr_player_idx=0, t=t,
+                                next_observation=None, next_action_mask=None)
+            action = policy.play(env, dict(observation=state), 0, '', action_mask, None)
             state, reward, done, _, _ = env.step(action)
             if args.render:
                 env.render()
-            rewards.append(reward)
-            log_probs.append(log_prob)
             ep_reward += reward
+            episode_info.update({
+                'action': action,
+                'reward': reward,
+                'done': done,
+            })
+            episode_buffer.append(episode_info)
+            actions.append(action)
             if done:
                 break
 
+        add_episode_to_replay_buffer(replay_buffer, episode_buffer, discount_factor)
         running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-        finish_episode(rewards, log_probs)
+        policy.train_update(replay_buffer)
         if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                  i_episode, ep_reward, running_reward))
+            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}\tLast actions mean: {:.2f}'.format(
+                  i_episode, ep_reward, running_reward, np.mean(actions)))
         if running_reward > env.spec.reward_threshold:
             print("Solved! Running reward is now {} and "
                   "the last episode runs to {} time steps!".format(running_reward, t))
