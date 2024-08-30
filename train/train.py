@@ -66,7 +66,8 @@ def train(env: AECEnv, agent: TrainableAgent, folder_to_save: Path,
           seed: int = 42,
           render_every: int = 1000,
           renderable_env: AECEnv = None,
-          save_checkpoint_every: int = -1
+          save_checkpoint_every: int = -1,
+          running_loss_alpha: float = 0.9,
           ) -> None:
     """
     train using self-play
@@ -83,6 +84,7 @@ def train(env: AECEnv, agent: TrainableAgent, folder_to_save: Path,
     :param render_every: when to render an episode to screen
     :param renderable_env: same as env, but with render_mode='human'. will be displayed render episodes
     :param save_checkpoint_every: when to save a checkpoint of the model, if -1 don't save any checkpoints
+    :param running_loss_alpha: alpha for the (exponential) running loss calculation
     """
     assert isinstance(agent, TrainableAgent)
     assert isinstance(folder_to_save, Path), "folder_to_save should be a Path object"
@@ -145,9 +147,12 @@ def train(env: AECEnv, agent: TrainableAgent, folder_to_save: Path,
 
         if curr_game % train_every == 0:
             loss = agent.train_update(replay_buffer)
-            print(f'Loss: {loss}')
-            if loss:
-                losses.append(loss)
+            if loss is not None:
+                running_loss = loss
+                if len(losses) > 0:
+                    running_loss = running_loss_alpha * loss + (1 - running_loss_alpha) * losses[-1]
+                print(f'Loss: {loss:.2f}, Running Loss: {running_loss:.2f}')
+                losses.append(running_loss)
 
         if curr_game > 0 and curr_game % add_agent_to_pool_every == 0:
             previous_agents.append(copy.deepcopy(agent))
@@ -186,8 +191,12 @@ if __name__ == '__main__':
     env.reset()
     state_shape = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
     state_size = np.prod(state_shape)
+    hidden_size = 64
+    batch_size = 10
     action_size = env.action_space(env.agents[0]).n
-    agent = ReinforceAgent(state_size=state_size, action_size=action_size, agent_name="ReinforceAgent_try", batch_size=10)
+    agent = ReinforceAgent(state_size=state_size, action_size=action_size,
+                           agent_name=f"ReinforceAgent_depth1_games1e5_hidden{hidden_size}_batch10",
+                           hidden_size=hidden_size, batch_size=10)
     folder = Path(__file__).resolve().parent / 'trained_agents'
-    train(env, agent, folder, n_games=10, render_every=10_000,
+    train(env, agent, folder, n_games=100_000, render_every=10_000,
           renderable_env=renderable_env, save_checkpoint_every=10_000)
