@@ -77,6 +77,9 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
 
         env.reset()
         for curr_agent_str in env.agent_iter():
+            if curr_game % train_every == 0:
+                agent.train_update(replay_buffer)
+
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = env.last()
             done = termination or truncation
@@ -107,9 +110,6 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
 
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
-
-        if curr_game % train_every == 0:
-            agent.train_update(replay_buffer)
 
         if curr_game > 0 and curr_game % add_agent_to_pool_every == 0:
             previous_agents.append(copy.deepcopy(agent))

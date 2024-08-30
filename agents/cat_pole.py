@@ -69,10 +69,10 @@ def main(replay_buffer_size: int = 10_000, discount_factor: float = 0.99):
         if i_episode % args.log_interval == 0:
             print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}\tLast actions mean: {:.2f}'.format(
                   i_episode, ep_reward, running_reward, np.mean(actions)))
-        if running_reward > env.spec.reward_threshold:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, t))
-            break
+        # if running_reward > env.spec.reward_threshold:
+        #     print("Solved! Running reward is now {} and "
+        #           "the last episode runs to {} time steps!".format(running_reward, t))
+        #     break
 
 
 if __name__ == '__main__':

@@ -45,8 +45,8 @@ class DQNAgent(TrainableAgent):
     def play(self, env, obs, curr_agent_idx, curr_agent_str, action_mask, info: Dict[str, Any]):
         if random.random() <= self.epsilon:
             # todo - remove the change
-            # return env.action_space(curr_agent_str).sample(action_mask).item()
-            return env.action_space.sample(action_mask.astype(np.int8)).item()
+            return env.action_space(curr_agent_str).sample(action_mask).item()
+            # return env.action_space.sample(action_mask.astype(np.int8)).item()
 
         state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
 
@@ -82,7 +82,7 @@ class DQNAgent(TrainableAgent):
 
         # Compute loss
         loss = self.loss_fn(q_values, target_q_values)
-        # print(f"Loss: {loss.item()}")
+        print(f"Loss: {loss.item()}")
 
         # Optimize the model
         self.optimizer.zero_grad()
