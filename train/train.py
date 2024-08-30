@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from agents.trainable_agent import TrainableAgent
 from agents.dqn_agent import DQNAgent
-from environments import ultimate_ttt
+# from environments import ultimate_ttt
 
 from utils.replay_buffer import ReplayBuffer
 from utils.utils import get_action_mask
@@ -89,7 +89,7 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
                     idx = -1
 
                 episode_buffer[idx].update({
-                    'next_observation': observation,
+                    'next_observation': observation['observation'],
                     'reward': reward,
                     'done': done,
                     'next_action_mask': action_mask,
@@ -99,7 +99,7 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
                 action = None
             else:
                 action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask, info)
-                episode_buffer.append(dict(observation=observation,
+                episode_buffer.append(dict(observation=observation['observation'],
                                            action=action,
                                            action_mask=action_mask,
                                            curr_player_idx=curr_player_idx,
