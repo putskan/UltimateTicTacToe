@@ -3,16 +3,72 @@ import random
 from collections import deque
 from typing import List, Dict
 
+import numpy as np
 from pettingzoo import AECEnv
 from pettingzoo.classic import tictactoe_v3
 from tqdm import tqdm
 
+import agents
+from agents.random_agent import RandomAgent
 from agents.trainable_agent import TrainableAgent
 from agents.dqn_agent import DQNAgent
 # from environments import ultimate_ttt
 
 from utils.replay_buffer import ReplayBuffer
 from utils.utils import get_action_mask
+
+def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int = 42) -> float:
+    """
+    evaluate the agent
+    :param env: environment to play in
+    :param agent: agent to evaluate
+    :param n_games: number of episodes to evaluate for
+    :param seed: seed for reproducibility
+    :return: average reward over the n_games episodes
+    """
+    random_agent = RandomAgent()
+
+    env.reset(seed=seed)
+    agent.eval()
+    total_reward = 0
+    for _ in range(n_games):
+        env.reset()
+
+        main_agent_idx = random.randint(0, 1)
+        if main_agent_idx == 0:
+            players = [agent, random_agent]
+        else:
+            players = [random_agent, agent]
+
+        curr_player_idx = 0
+        cumulative_rewards = [0, 0]
+
+        for curr_agent_str in env.agent_iter():
+            curr_player = players[curr_player_idx]
+
+            observation, reward, termination, truncation, info = env.last()
+            done = termination or truncation
+            if done:
+                action = None
+            else:
+                action_mask = get_action_mask(observation, info)
+                action = curr_player.play(env, observation, 0, curr_agent_str, action_mask, info)
+
+            env.step(action)
+            curr_player_idx = (curr_player_idx + 1) % len(players)
+
+            cumulative_rewards[curr_player_idx] += reward
+
+        is_draw = cumulative_rewards[0] == cumulative_rewards[1]
+        if is_draw:
+            total_reward += 0.5
+
+        else:
+            winner = np.argmax(cumulative_rewards).item()
+            if winner == main_agent_idx:
+                total_reward += 1
+
+    return total_reward / n_games
 
 
 def add_episode_to_replay_buffer(replay_buffer: ReplayBuffer,
@@ -39,7 +95,7 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
           seed: int = 42,
           render_every: int = 1000,
           renderable_env: AECEnv = None,
-          ) -> None:
+          evaluate_every: int = 50) -> None:
     """
     train using self-play
     :param env: environment to play in
@@ -116,6 +172,9 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
 
         if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:
             env = original_env
+
+        if curr_game > 0 and curr_game % evaluate_every == 0:
+            print(evaluate(env, agent, n_games=5, seed=seed))
 
         add_episode_to_replay_buffer(replay_buffer, episode_buffer, discount_factor)
 

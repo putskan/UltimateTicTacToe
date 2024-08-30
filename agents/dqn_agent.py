@@ -82,7 +82,7 @@ class DQNAgent(TrainableAgent):
 
         # Compute loss
         loss = self.loss_fn(q_values, target_q_values)
-        print(f"Loss: {loss.item()}")
+        # print(f"Loss: {loss.item()}")
 
         # Optimize the model
         self.optimizer.zero_grad()
