@@ -1,12 +1,14 @@
 import logging
 import os
+from pathlib import Path
+from typing import Union
 
 
-def get_logger(log_name: str, log_dir_name: str = None, log_to_console: bool = False) -> logging.Logger:
+def get_logger(log_name: str, log_dir_name: Union[Path, str] = None, log_to_console: bool = False) -> logging.Logger:
     """
     Create and configure a logger
     :param log_name: The log name
-    :param log_file_name: The log file name
+    :param log_dir_name: The log dest directory
     :param log_to_console: Whether to log to console
     :return Configured logger
     """
