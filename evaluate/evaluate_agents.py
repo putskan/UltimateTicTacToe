@@ -224,8 +224,7 @@ if __name__ == '__main__':
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
-    # env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
-    env = tictactoe_v3.env()
+    env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
     dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
     agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), dqn_agent]
 
