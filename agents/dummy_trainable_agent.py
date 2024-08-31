@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional, Dict
 from torch import nn
 
 from agents.random_agent import RandomAgent
@@ -15,8 +15,9 @@ class DummyTrainableAgent(TrainableAgent):
         self.inner_agent = RandomAgent()
         self.modules.append(nn.Linear(1, 1))
 
-    def train_update(self, replay_buffer: ReplayBuffer) -> None:
+    def train_update(self, replay_buffer: ReplayBuffer) -> Optional[Dict[str, Any]]:
         pass
 
     def play(self, *args, **kwargs) -> Any:
         return self.inner_agent.play(*args, **kwargs)
+

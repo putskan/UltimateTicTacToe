@@ -22,7 +22,7 @@ if __name__ == '__main__':
     discount_factor = 0.6
     date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     agent = DQNAgent(state_size=state_size, action_size=action_size, learning_rate=3e-4,
-                     gamma=discount_factor, use_lr_scheduler=True)
+                     discount_factor=discount_factor, use_lr_scheduler=True)
     # noinspection PyCallingNonCallable
     train(env, agent, n_games=100_000, render_every=1_000,
           renderable_env=renderable_env, only_main_agent_to_replay=False,
