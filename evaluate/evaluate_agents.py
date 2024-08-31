@@ -9,6 +9,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib
+
+from agents.dqn_agent import DQNAgent
+
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
@@ -23,7 +26,7 @@ from tqdm import tqdm
 
 from agents.unbeatable_classic_ttt_agent.unbeatable_classic_ttt_agent import UnbeatableClassicTTTAgent
 from environments import ultimate_ttt
-from utils.utils import get_action_mask
+from utils.utils import get_action_mask, load_agent
 from utils.logger import get_logger
 
 K = 32
@@ -43,6 +46,9 @@ class AgentsEvaluator:
         :param n_rounds: number of rounds to play.
                         for n_rounds=n and len(agents)=k, we play n * (k * (k-1)) games
         """
+        for agent in agents:
+            if hasattr(agent, 'eval'):
+                agent.eval()
         n_agents = len(agents)
         if logger is None:
             logger = get_logger("evaluate_agents", log_dir_name=None, log_to_console=True)
@@ -138,7 +144,7 @@ class AgentsEvaluator:
                 self.players_elo_rating[agent2] = new_rate2
 
         player_draws = self.player_total_games - (self.wins.sum(axis=0) + self.wins.sum(axis=1))
-        players_win_percentage = (self.wins.sum(axis=1) + player_draws) / self.player_total_games
+        players_win_percentage = (self.wins.sum(axis=1) + 0.5 * player_draws) / self.player_total_games
         players_win_percentage_dict = {self.agents[i]: players_win_percentage[i] for i in range(n_agents)}
         sorted_player_win_percentage = sorted(players_win_percentage_dict.items(), key=lambda item: item[1], reverse=True)
         sorted_elo_ratings = sorted(self.players_elo_rating.items(), key=lambda item: item[1], reverse=True)
@@ -200,8 +206,9 @@ if __name__ == '__main__':
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
-    env = ultimate_ttt.env(render_mode=None, depth=2)  # 'human', 'rgb_array', 'ansi', None
-    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent()]
+    env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
+    dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
+    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), dqn_agent]
 
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"

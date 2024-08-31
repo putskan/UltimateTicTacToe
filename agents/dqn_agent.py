@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Type
 
 import numpy as np
 import torch
@@ -17,7 +17,7 @@ import copy
 class DQNAgent(TrainableAgent):
     def __init__(self, state_size, action_size, hidden_size=64, learning_rate=1e-3, gamma=0.6, epsilon=0.4,
                  epsilon_decay=0.9999, epsilon_min=0.1, batch_size=128,
-                 tau=0.005, use_lr_scheduler: bool = False):
+                 tau=0.005, use_lr_scheduler: bool = False, model_cls: Type = DQN):
         super().__init__()
         self.state_size = state_size
         self.action_size = action_size
@@ -33,8 +33,8 @@ class DQNAgent(TrainableAgent):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Q-Networks
-        self.policy_net = DQN(self.state_size, self.action_size).to(self.device)
-        self.target_net = DQN(self.state_size, self.action_size).to(self.device)
+        self.policy_net = model_cls(self.state_size, self.action_size).to(self.device)
+        self.target_net = model_cls(self.state_size, self.action_size).to(self.device)
         self.target_net.load_state_dict(copy.deepcopy(self.policy_net.state_dict()))
         self.target_net.eval()
 
@@ -45,8 +45,18 @@ class DQNAgent(TrainableAgent):
         self.modules.append(self.policy_net)
         self.modules.append(self.target_net)
 
+        self.use_eps_greedy = False
+
+    def eval(self):
+        super().eval()
+        self.use_eps_greedy = False
+
+    def train(self):
+        super().train()
+        self.use_eps_greedy = True
+
     def play(self, env, obs, curr_agent_idx, curr_agent_str, action_mask, info: Dict[str, Any]):
-        if random.random() <= self.epsilon:
+        if self.use_eps_greedy and random.random() <= self.epsilon:
             # todo - remove the change
             return env.action_space(curr_agent_str).sample(action_mask).item()
             # return env.action_space.sample(action_mask.astype(np.int8)).item()

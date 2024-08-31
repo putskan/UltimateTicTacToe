@@ -22,6 +22,7 @@ from agents.hierarchical_agent import HierarchicalAgent
 from agents.random_agent import RandomAgent
 from agents.trainable_agent import TrainableAgent
 from agents.dqn_agent import DQNAgent
+from models.dqn import DQN, PrevDQN, DuelingDQN
 from utils.logger import get_logger
 
 from utils.replay_buffer import ReplayBuffer
@@ -41,7 +42,7 @@ def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int =
     :param opponent_agent: opponent to evaluate against
     :return: average reward over the n_games episodes
     """
-
+    agent.eval()
     with torch.no_grad():
         env.reset(seed=seed)
         agent.eval()
@@ -82,7 +83,6 @@ def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int =
                 winner = np.argmax(cumulative_rewards).item()
                 if winner == main_agent_idx:
                     total_reward += 1
-
         return total_reward / n_games
 
 
@@ -189,6 +189,9 @@ def train(env: AECEnv, agent: TrainableAgent,
         else:
             players = [random.choice(previous_agents), agent]
 
+        for player in players:
+            player.train()
+
         curr_player_idx = 0
         if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:
             original_env = env
@@ -245,7 +248,7 @@ def train(env: AECEnv, agent: TrainableAgent,
             previous_agents.append(copy.deepcopy(agent))
 
         if curr_game > 0 and save_checkpoint_every > -1 and curr_game % save_checkpoint_every == 0:
-            save_agent(agent, folder_to_save / f'checkpoint_{curr_game // save_checkpoint_every}.pickle')
+            save_agent(agent, folder_to_save / f'checkpoint_{curr_game}.pickle')
 
         if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:
             env = original_env
@@ -278,7 +281,6 @@ if __name__ == '__main__':
 
     # REINFORCE training
     from agents.reinforce_agent import ReinforceAgent
-
     from environments import ultimate_ttt
     import numpy as np
     env = ultimate_ttt.env(render_mode=None, depth=1)
