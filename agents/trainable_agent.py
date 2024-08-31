@@ -13,10 +13,10 @@ class TrainableAgent(Agent):
         self.modules = []  # points to the agent's torch modules. add all modules to this list
 
     @abstractmethod
-    def train_update(self, replay_buffer: ReplayBuffer) -> None:
+    def train_update(self, replay_buffer: ReplayBuffer) -> float:
         """
         relevant for agents that train (neural networks).
-        perform a train step/update.
+        perform a train step/update and return the loss.
         """
         pass
 
