@@ -1,5 +1,5 @@
 import random
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 
 import numpy as np
 import torch
@@ -84,7 +84,7 @@ class ReinforceAgent(TrainableAgent):
         m = self._apply_policy_net(states, action_masks)
         return m.log_prob(actions)
 
-    def train_update(self, replay_buffer: ReplayBuffer):
+    def train_update(self, replay_buffer: ReplayBuffer) -> Optional[Dict[str, Any]]:
         if len(replay_buffer) < self.batch_size:
             print("Replay buffer not large enough to train")
             return
@@ -116,4 +116,4 @@ class ReinforceAgent(TrainableAgent):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        return loss.item()
+        return {'loss': loss.item()}
