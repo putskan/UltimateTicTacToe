@@ -1,9 +1,13 @@
 import copy
 import datetime
 import logging
+import os
 import random
 from collections import deque
-from typing import List, Dict
+from pathlib import Path
+from typing import List, Dict, Union
+import matplotlib
+import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
@@ -19,10 +23,11 @@ from agents.random_agent import RandomAgent
 from agents.trainable_agent import TrainableAgent
 from agents.dqn_agent import DQNAgent
 from utils.logger import get_logger
-# from environments import ultimate_ttt
 
 from utils.replay_buffer import ReplayBuffer
-from utils.utils import get_action_mask
+from utils.utils import get_action_mask, save_agent
+
+matplotlib.use("TkAgg")
 
 
 def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int = 42,
@@ -62,7 +67,8 @@ def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int =
                     action = None
                 else:
                     action_mask = get_action_mask(observation, info)
-                    action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask, info)
+                    with torch.no_grad():
+                        action = curr_player.play(env, observation, curr_player_idx, curr_agent_str, action_mask, info)
 
                 env.step(action)
                 cumulative_rewards[curr_player_idx] += reward
@@ -98,7 +104,32 @@ def add_episode_to_replay_buffer(replay_buffer: ReplayBuffer,
             replay_buffer.push(**curr_record)
 
 
-def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
+def plot_loss(losses: List[float], path_to_save: Path = None, abs_loss: bool = True):
+    """
+    :param losses:
+    :param path_to_save:
+    :return:
+    """
+    if abs_loss:
+        losses = np.abs(losses)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(losses)
+    plt.xlabel('Episode')
+    abs_str = {"Absolute" if abs_loss else ""}
+    plt.ylabel(f'{abs_str}Loss')
+    plt.ylim(bottom=0)
+    plt.title(f'{abs_str}Loss per Episode')
+
+    if path_to_save:
+        plt.savefig(path_to_save)
+
+    plt.show()
+    plt.close()
+
+
+def train(env: AECEnv, agent: TrainableAgent,
+          n_games: int = 10_000,
           agent_pool_size: int = 10,
           add_agent_to_pool_every: int = 500,
           train_every: int = 1,
@@ -109,30 +140,42 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
           renderable_env: AECEnv = None,
           evaluate_every: int = 100,
           only_main_agent_to_replay: bool = False,
+          save_checkpoint_every: int = -1,
+          running_loss_alpha: float = 0.9,
+          folder_to_save: Union[Path, str] = None,
           logger: logging.Logger = None) -> None:
     """
     train using self-play
     :param env: environment to play in
     :param agent: agent to train vs versions of itself
+    :param folder_to_save: file path to save the model to
     :param n_games: number of episodes to train for
     :param agent_pool_size: maximum number of copies of the agent to train against
     :param add_agent_to_pool_every: number of games (episodes) between adding a copy of the existing agent to the pool
-    :param train_every: call agent's train_update method every 'train_every' episodes
+    :param train_every: call agent's train_update method every 'train_every' steps
     :param replay_buffer_size: maximum size for the replay buffer
     :param discount_factor: discount factor for the cumulative reward
     :param seed: seed for reproducibility
     :param render_every: when to render an episode to screen
     :param renderable_env: same as env, but with render_mode='human'. will be displayed render episodes
-    :param logger: logger object
+    :param save_checkpoint_every: when to save a checkpoint of the model, if -1 don't save any checkpoints
+    :param running_loss_alpha: alpha for the (exponential) running loss calculation
+    :param logger: optional logger object
     """
-    if logger is None:
-        logger = get_logger(__name__)
     assert isinstance(agent, TrainableAgent)
     assert 0 <= discount_factor <= 1
-    env.reset(seed=seed)
-    agent.train()
+    date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    if folder_to_save is not None:
+        folder_to_save = Path(folder_to_save) / str(agent) / date_str
+        os.makedirs(folder_to_save, exist_ok=True)
 
+    if logger is None:
+        logger = get_logger(__name__, log_dir_name=folder_to_save, log_to_console=folder_to_save is None)
+
+    agent.train()
+    env.reset(seed=seed)
     replay_buffer = ReplayBuffer(size=replay_buffer_size)
+    losses = []
     previous_agents = deque(maxlen=agent_pool_size)
     previous_agents.append(copy.deepcopy(agent))
     pbar = tqdm(range(n_games))
@@ -147,7 +190,7 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             players = [random.choice(previous_agents), agent]
 
         curr_player_idx = 0
-        if curr_game > 0 and curr_game % render_every == 0:
+        if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:
             original_env = env
             env = renderable_env
 
@@ -156,6 +199,11 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             if curr_game % train_every == 0:
                 train_data = agent.train_update(replay_buffer)
                 log_dict.update({'last_eval': last_eval, **(train_data or {})})
+                if isinstance(train_data, dict):
+                    running_loss = train_data['loss']
+                    if len(losses) > 0:
+                        running_loss = running_loss_alpha * train_data['loss'] + (1 - running_loss_alpha) * losses[-1]
+                    losses.append(running_loss)
 
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = env.last()
@@ -190,9 +238,14 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
 
-        log_dict['last_episode_length'] = len(episode_buffer)
+        if curr_game % train_every == 0:
+            agent.train_update(replay_buffer)
+
         if curr_game > 0 and curr_game % add_agent_to_pool_every == 0:
             previous_agents.append(copy.deepcopy(agent))
+
+        if curr_game > 0 and save_checkpoint_every > -1 and curr_game % save_checkpoint_every == 0:
+            save_agent(agent, folder_to_save / f'checkpoint_{curr_game // save_checkpoint_every}.pickle')
 
         if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:
             env = original_env
@@ -205,23 +258,36 @@ def train(env: AECEnv, agent: TrainableAgent, n_games: int = 10_000,
         logger.info(log_dict)
         pbar.set_postfix(log_dict)
 
+    save_agent(agent, folder_to_save / 'final.pickle')
+    if losses:
+        plot_loss(losses, folder_to_save / 'loss.png')
     env.close()
 
 
 if __name__ == '__main__':
-    # env = ultimate_ttt.env(render_mode='human', depth=2, render_fps=10)
-    env = tictactoe_v3.env(render_mode=None)
-    renderable_env = tictactoe_v3.env(render_mode='human')
-    env.reset()
-    state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
-    action_size = env.action_space(env.agents[0]).n
-    discount_factor = 0.6
-    date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    train_logger = get_logger('train', log_dir_name=f'logs/train_{date_str}')
+    # TODO: fix state (observation) unpacking in DQN agent
+    # # DQN training
+    # # env = ultimate_ttt.env(render_mode='human', depth=2, render_fps=10)
+    # env = tictactoe_v3.env(render_mode=None)
+    # renderable_env = tictactoe_v3.env(render_mode='human')
+    # env.reset()
+    # state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
+    # action_size = env.action_space(env.agents[0]).n
+    # agent = DQNAgent(state_size=state_size, action_size=action_size)
+    # train(env, agent, n_games=100_000, render_every=20_000, renderable_env=renderable_env)
 
-    agent = DQNAgent(state_size=state_size, action_size=action_size, learning_rate=3e-4,
-                     gamma=discount_factor, use_lr_scheduler=True)
-    train(env, agent, n_games=100_000, render_every=1_000,
-          renderable_env=renderable_env, only_main_agent_to_replay=False,
-          discount_factor=discount_factor,
-          logger=train_logger)
+    # REINFORCE training
+    from agents.reinforce_agent import ReinforceAgent
+
+    from environments import ultimate_ttt
+    import numpy as np
+    env = ultimate_ttt.env(render_mode=None, depth=1)
+    renderable_env = None  # ultimate_ttt.env(render_mode='human', depth=1)
+    env.reset()
+    state_shape = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
+    state_size = np.prod(state_shape)
+    hidden_size = 64
+    batch_size = 10
+    action_size = env.action_space(env.agents[0]).n
+    agent = DQNAgent(state_size=state_size, action_size=action_size)
+    train(env, agent, n_games=100_000, render_every=20_000, renderable_env=renderable_env)
