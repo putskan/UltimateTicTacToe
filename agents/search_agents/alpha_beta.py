@@ -6,7 +6,6 @@ from pettingzoo import AECEnv
 from agents.agent import Agent
 from agents.hierarchical_agent import HierarchicalAgent
 from environments import ultimate_ttt
-from evaluate.evaluate_agents import AgentsEvaluator
 from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
 from evaluation_functions.evaluation_function import EvaluationFunction
 from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
@@ -112,6 +111,8 @@ class AlphaBeta(Agent):
 
 
 if __name__ == '__main__':
+    from evaluate.evaluate_agents import AgentsEvaluator
+
     env = ultimate_ttt.env(render_mode=None, depth=2, render_fps=10)
 
     agents = [

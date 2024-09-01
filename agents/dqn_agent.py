@@ -47,6 +47,10 @@ class DQNAgent(TrainableAgent):
 
         self.use_eps_greedy = False
 
+    def copy_networks(self, other: 'DQNAgent'):
+        self.policy_net.load_state_dict(other.policy_net.state_dict())
+        self.target_net.load_state_dict(other.target_net.state_dict())
+
     def eval(self) -> None:
         super().eval()
         self.use_eps_greedy = False
@@ -55,20 +59,22 @@ class DQNAgent(TrainableAgent):
         super().train()
         self.use_eps_greedy = True
 
+    def get_q_values(self, obs: Dict[str, np.ndarray]) -> torch.Tensor:
+        state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
+        action_mask = obs['action_mask']
+        with torch.no_grad():
+            action = self.policy_net(state)
+        action[:, (~action_mask.astype(bool)).tolist()] = -float('inf')
+        return action
+
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
              curr_agent_str: str, action_mask: Optional[np.ndarray],
              info: Dict[str, Any]) -> Any:
         if self.use_eps_greedy and random.random() <= self.epsilon:
-            # todo - remove the change
             return env.action_space(curr_agent_str).sample(action_mask).item()
-            # return env.action_space.sample(action_mask.astype(np.int8)).item()
 
-        state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
-
-        with torch.no_grad():
-            action = self.policy_net(state)
-            action[:, (~action_mask.astype(bool)).tolist()] = -float('inf')
-            return action.argmax().item()
+        q_values = self.get_q_values(obs)
+        return q_values.argmax().item()
 
     def train_update(self, replay_buffer: ReplayBuffer) -> Optional[Dict[str, Any]]:
         if len(replay_buffer) < self.batch_size * 5:
