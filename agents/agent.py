@@ -16,6 +16,10 @@ class Agent:
         """
         self.agent_name = agent_name
 
+    def set_name(self, agent_name: str) -> 'Agent':
+        self.agent_name = agent_name
+        return self
+
     @abstractmethod
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
              curr_agent_str: str, action_mask: Optional[np.ndarray],

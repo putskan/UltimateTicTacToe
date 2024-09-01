@@ -25,12 +25,12 @@ class PrevDQN(nn.Module):
 class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super().__init__()
-        n_observations = 9  # TODO: change, TODO: add prev version
+        n_observations = np.prod(n_observations).item() // 2  # merge planes
         self.flatten = nn.Flatten()
         self.net = nn.Sequential(
-            nn.Linear(n_observations, 32),
+            nn.Linear(n_observations, max(32, n_observations * 2)),
             nn.ReLU(),
-            nn.Linear(32, 64),
+            nn.Linear(max(32, n_observations * 2), 64),
             nn.ReLU(),
             nn.Linear(64, 128),
             nn.ReLU(),

@@ -30,7 +30,7 @@ class ProbabilisticEstimator(EvaluationFunction):
         None: (0.15, 0.15),
     })
 
-    def __init__(self, depth: int = 100, reduction_method: Literal['mean', 'probabilistic'] = 'probabilistic',
+    def __init__(self, depth: int = 3, reduction_method: Literal['mean', 'probabilistic'] = 'probabilistic',
                  db_path: Union[Path, str] = UnbeatableClassicTTTAgent.DEFAULT_DB_PATH,
                  depth_zero_probability_estimations: dict = _DEFAULT_DEPTH_ZERO_PROBABILITY_ESTIMATIONS,
                  *args, **kwargs) -> None:
