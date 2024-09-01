@@ -179,19 +179,37 @@ class AgentsEvaluator:
         draws_df = pd.DataFrame(draws, index=self.agents, columns=self.agents)
 
         # Visualizing the matrices using heatmaps
-        plt.figure(figsize=(18, 6))
+        plt.figure(figsize=(18, 12))
 
-        plt.subplot(1, 3, 1)
+        plt.subplot(2, 3, 1)
         sns.heatmap(wins_df, annot=True, fmt="d", cmap="Blues", cbar=False)
         plt.title('Wins')
 
-        plt.subplot(1, 3, 2)
+        plt.subplot(2, 3, 2)
         sns.heatmap(losses_df, annot=True, fmt="d", cmap="Reds", cbar=False)
         plt.title('Losses')
 
-        plt.subplot(1, 3, 3)
+        plt.subplot(2, 3, 3)
         sns.heatmap(draws_df, annot=True, fmt="d", cmap="Greens", cbar=False)
         plt.title('Draws')
+
+        # bar plot for total scores
+        total_scores = wins_df.sum(axis=1) + draws_df.sum(axis=1) * 0.5  # Wins + 0.5 * Draws
+        plt.subplot(2, 3, 4)
+        colors = sns.color_palette("rainbow", len(agents))
+
+        total_scores.sort_values().plot(kind='barh', color=colors)
+        plt.title('Total Scores by Agent')
+        plt.xlabel('Score')
+        plt.ylabel('Agent')
+
+        # Elo rating
+        elo_ratings = pd.Series(self.players_elo_rating).sort_values()
+        plt.subplot(2, 3, 5)
+        elo_ratings.plot(kind='barh', color=colors)
+        plt.title('Elo Ratings by Agent')
+        plt.xlabel('Elo Rating')
+        plt.ylabel('Agent')
 
         plt.suptitle(f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)', fontsize=14)
         plt.tight_layout()
