@@ -11,7 +11,7 @@ from torch import Tensor
 from torch.optim.lr_scheduler import ExponentialLR
 
 from agents.trainable_agent import TrainableAgent
-from models.dqn import DQN
+from models.dqn import DQN, PrevDQN
 from models.reinforce import ReinforcePolicy
 from utils.replay_buffer import ReplayBuffer
 
@@ -37,7 +37,7 @@ class ReinforceAgent(TrainableAgent):
         self.use_eps_greedy = False
 
         # self.policy_net = ReinforcePolicy(self.state_size, self.action_size, self.hidden_size).to(self.device)
-        self.policy_net = DQN(self.state_size, self.action_size).to(self.device)
+        self.policy_net = PrevDQN(self.state_size, self.action_size).to(self.device)
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.learning_rate, amsgrad=True)
         self.lr_scheduler = ExponentialLR(self.optimizer, gamma=0.99999)
 
