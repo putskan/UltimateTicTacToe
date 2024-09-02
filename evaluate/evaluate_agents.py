@@ -196,7 +196,7 @@ class AgentsEvaluator:
         # bar plot for total scores
         total_scores = wins_df.sum(axis=1) + draws_df.sum(axis=1) * 0.5  # Wins + 0.5 * Draws
         plt.subplot(2, 3, 4)
-        colors = sns.color_palette("rainbow", len(agents))
+        colors = sns.color_palette("rainbow", len(self.wins))
 
         total_scores.sort_values().plot(kind='barh', color=colors)
         plt.title('Total Scores by Agent')
