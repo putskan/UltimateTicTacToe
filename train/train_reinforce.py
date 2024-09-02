@@ -23,7 +23,7 @@ if __name__ == '__main__':
     agent = ReinforceAgent(state_size=state_size, action_size=action_size,
                            hidden_size=hidden_size, batch_size=batch_size,
                            learning_rate=learning_rate, discount_factor=discount_factor,
-                           use_lr_scheduler=True)
+                           use_lr_scheduler=True, epsilon_min=0.1, epsilon_decay=0.9999)
     # noinspection PyCallingNonCallable
     train(env, agent, n_games=100_000, render_every=1_000,
           renderable_env=renderable_env, only_main_agent_to_replay=False,

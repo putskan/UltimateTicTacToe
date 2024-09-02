@@ -1,5 +1,6 @@
+import math
 import random
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Optional
 
 import numpy as np
 import torch
@@ -57,8 +58,8 @@ class ReinforceAgent(TrainableAgent):
             else:
                 return env.action_space.sample(action_mask.astype(np.int8)).item()
 
-        state = torch.tensor(obs['observation'], dtype=torch.float32).unsqueeze(0).to(self.device)
-        action_mask = torch.BoolTensor(action_mask).to(self.device).unsqueeze(0)
+        state = torch.tensor(obs['observation'], dtype=torch.float32, device=self.device).unsqueeze(0)
+        action_mask = torch.BoolTensor(action_mask, device=self.device).unsqueeze(0)
         action = self._select_actions(state, action_mask)
         return action.item()
 
@@ -107,10 +108,11 @@ class ReinforceAgent(TrainableAgent):
 
         (states, actions, _, _, _, action_masks,
          _, _, cumulative_rewards, _) = zip(*batch)
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.LongTensor(actions).to(self.device)
-        action_masks = torch.BoolTensor(action_masks).to(self.device)
-        cumulative_rewards = torch.FloatTensor(cumulative_rewards).to(self.device)
+
+        states = torch.FloatTensor(np.array(states), device=self.device)
+        actions = torch.LongTensor(np.array(actions), device=self.device)
+        action_masks = torch.BoolTensor(np.array(action_masks), device=self.device)
+        cumulative_rewards = torch.FloatTensor(np.array(cumulative_rewards), device=self.device)
 
         # Compute the log probabilities of action policies
         log_probs = self.get_action_log_probs(states, action_masks, actions)
@@ -118,12 +120,14 @@ class ReinforceAgent(TrainableAgent):
         # Compute loss
         # TODO: multiply by discount_factor ** t?
         loss = -log_probs * cumulative_rewards
-        loss = loss.sum()
+        loss = loss.mean()
 
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        sample_grad_norm = math.sqrt(((next(self.policy_net.parameters()).grad) ** 2).sum().item())
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 10)
+
         self.optimizer.step()
         if self.use_lr_scheduler:
             self.lr_scheduler.step()
@@ -132,4 +136,5 @@ class ReinforceAgent(TrainableAgent):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        return {'loss': loss.item(), 'epsilon': self.epsilon, 'lr': self.lr_scheduler.get_last_lr()[0]}
+        return {'loss': loss.item(), 'epsilon': self.epsilon, 'lr': self.lr_scheduler.get_last_lr()[0],
+                'sample_grad_norm': sample_grad_norm}
