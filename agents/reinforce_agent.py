@@ -7,8 +7,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 from torch import Tensor
+from torch.optim.lr_scheduler import ExponentialLR
 
 from agents.trainable_agent import TrainableAgent
+from models.dqn import DQN
 from models.reinforce import ReinforcePolicy
 from utils.replay_buffer import ReplayBuffer
 
@@ -17,27 +19,39 @@ class ReinforceAgent(TrainableAgent):
     """
     A REINFORCE agent that uses a policy network to select actions
     """
-    def __init__(self, state_size, action_size, hidden_size=64, learning_rate=1e-4, gamma=0.99, epsilon=0.7,
-                 epsilon_decay=0.99, epsilon_min=0.01, batch_size=64, *args, **kwargs):
+    def __init__(self, state_size, action_size, hidden_size=64, learning_rate=1e-4, discount_factor=0.99, epsilon=0.7,
+                 epsilon_decay=0.99, epsilon_min=0.01, batch_size=64, use_lr_scheduler: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
         self.learning_rate = learning_rate
-        self.gamma = gamma
+        self.discount_factor = discount_factor
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
         self.batch_size = batch_size
+        self.use_lr_scheduler = use_lr_scheduler
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.use_eps_greedy = False
 
-        self.policy_net = ReinforcePolicy(self.state_size, self.action_size, self.hidden_size).to(self.device)
+        # self.policy_net = ReinforcePolicy(self.state_size, self.action_size, self.hidden_size).to(self.device)
+        self.policy_net = DQN(self.state_size, self.action_size).to(self.device)
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.learning_rate, amsgrad=True)
+        self.lr_scheduler = ExponentialLR(self.optimizer, gamma=0.99999)
 
         self.modules.append(self.policy_net)
 
+    def eval(self) -> None:
+        super().eval()
+        self.use_eps_greedy = False
+
+    def train(self) -> None:
+        super().train()
+        self.use_eps_greedy = True
+
     def play(self, env, obs, curr_agent_idx, curr_agent_str, action_mask, info: Dict[str, Any]):
-        if random.random() <= self.epsilon:
+        if self.use_eps_greedy and random.random() <= self.epsilon:
             if callable(env.action_space):
                 return env.action_space(curr_agent_str).sample(action_mask).item()
             else:
@@ -45,8 +59,8 @@ class ReinforceAgent(TrainableAgent):
 
         state = torch.tensor(obs['observation'], dtype=torch.float32).unsqueeze(0).to(self.device)
         action_mask = torch.BoolTensor(action_mask).to(self.device).unsqueeze(0)
-        actions = self._select_actions(state, action_mask)
-        return actions.item()
+        action = self._select_actions(state, action_mask)
+        return action.item()
 
     def _apply_policy_net(self, states: Tensor, action_masks: Tensor) -> Categorical:
         """
@@ -85,7 +99,7 @@ class ReinforceAgent(TrainableAgent):
         return m.log_prob(actions)
 
     def train_update(self, replay_buffer: ReplayBuffer) -> Optional[Dict[str, Any]]:
-        if len(replay_buffer) < self.batch_size:
+        if len(replay_buffer) < self.batch_size * 5:
             print("Replay buffer not large enough to train")
             return
 
@@ -102,7 +116,7 @@ class ReinforceAgent(TrainableAgent):
         log_probs = self.get_action_log_probs(states, action_masks, actions)
 
         # Compute loss
-        # TODO: multiply by gamma ** t?
+        # TODO: multiply by discount_factor ** t?
         loss = -log_probs * cumulative_rewards
         loss = loss.sum()
 
@@ -111,9 +125,11 @@ class ReinforceAgent(TrainableAgent):
         loss.backward()
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
+        if self.use_lr_scheduler:
+            self.lr_scheduler.step()
 
         # Epsilon decay
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        return {'loss': loss.item()}
+        return {'loss': loss.item(), 'epsilon': self.epsilon, 'lr': self.lr_scheduler.get_last_lr()[0]}

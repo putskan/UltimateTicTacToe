@@ -45,8 +45,6 @@ def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int =
     """
     agent.eval()
     with torch.no_grad():
-        env.reset(seed=seed)
-        agent.eval()
         total_reward = 0
         for _ in range(n_games):
             env.reset()
@@ -117,7 +115,7 @@ def plot_loss(losses: List[float], path_to_save: Path = None, abs_loss: bool = T
     plt.figure(figsize=(10, 6))
     plt.plot(losses)
     plt.xlabel('Episode')
-    abs_str = {"Absolute" if abs_loss else ""}
+    abs_str = "Absolute " if abs_loss else ""
     plt.ylabel(f'{abs_str}Loss')
     plt.ylim(bottom=0)
     plt.title(f'{abs_str}Loss per Episode')
@@ -164,7 +162,6 @@ def train(env: AECEnv, agent: TrainableAgent,
     :param logger: optional logger object
     """
     assert isinstance(agent, TrainableAgent)
-    assert isinstance(folder_to_save, Path), "folder_to_save should be a Path object"
     assert 0 <= discount_factor <= 1
     date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     if folder_to_save is not None:
@@ -172,6 +169,7 @@ def train(env: AECEnv, agent: TrainableAgent,
         os.makedirs(folder_to_save, exist_ok=True)
 
     if logger is None:
+        # TODO: add logging folder to gitignore
         logger = get_logger(__name__, log_dir_name=folder_to_save, log_to_console=folder_to_save is None)
 
     agent.train()
@@ -243,15 +241,6 @@ def train(env: AECEnv, agent: TrainableAgent,
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
 
-        if curr_game % train_every == 0:
-            loss = agent.train_update(replay_buffer)
-            if loss is not None:
-                running_loss = loss
-                if len(losses) > 0:
-                    running_loss = running_loss_alpha * loss + (1 - running_loss_alpha) * losses[-1]
-                print(f'Loss: {loss:.2f}, Running Loss: {running_loss:.2f}')
-                losses.append(running_loss)
-
         if curr_game > 0 and curr_game % add_agent_to_pool_every == 0:
             previous_agents.append(copy.deepcopy(agent))
 
@@ -276,7 +265,6 @@ def train(env: AECEnv, agent: TrainableAgent,
 
 
 if __name__ == '__main__':
-    # TODO: fix state (observation) unpacking in DQN agent
     # # DQN training
     # # env = ultimate_ttt.env(render_mode='human', depth=2, render_fps=10)
     # env = tictactoe_v3.env(render_mode=None)
