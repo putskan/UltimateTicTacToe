@@ -9,7 +9,7 @@ from pettingzoo.utils import agent_selector, wrappers
 
 from environments.board_renderer import BoardRenderer
 from utils.piece import Piece
-
+from utils.utils import hash_np_array
 
 DEFAULT_CAPTION = 'Ultimate Tic-Tac-Toe'
 
@@ -37,6 +37,10 @@ class raw_env(AECEnv):
             return False
 
         return self.forced_boards == other.forced_boards and self.board == other.board
+
+    def __hash__(self):
+        hash_forced_boards = hash_np_array(np.array(self.forced_boards))
+        return hash((hash_forced_boards, self.board))
 
     def __init__(self, render_mode: str | None = None,
                  depth: int = 1, render_fps: int = 10, caption: str = DEFAULT_CAPTION):

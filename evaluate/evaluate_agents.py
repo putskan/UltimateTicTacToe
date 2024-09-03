@@ -70,6 +70,8 @@ class AgentsEvaluator:
         cumulative_rewards = [0] * len(players)
         curr_player_idx = 0
         self.env.reset()
+        for player in players:
+            player.reset()
         for curr_agent_str in self.env.agent_iter():
             curr_player = players[curr_player_idx]
             observation, reward, termination, truncation, info = self.env.last()

@@ -36,6 +36,12 @@ class Agent:
         """
         pass
 
+    def reset(self) -> None:
+        """
+        reset the agent
+        """
+        pass
+
     def __str__(self) -> str:
         return self.agent_name or self.__class__.__name__
 
