@@ -63,16 +63,19 @@ class ProbabilisticEstimator(EvaluationFunction):
         prob_to_win, prob_to_lose = self._cachable_main_eval(board=board)
         return prob_to_win - prob_to_lose
 
-    def _main_eval(self, board: np.ndarray):
-        if board.shape == (3, 3):  # base case
-            return self._cachable_prob_to_win_sub_board(board=board, depth=self.depth)
-
+    def _get_prob_matrix(self, board: np.ndarray) -> np.ndarray:
         prob_matrix = np.zeros((3, 3, 2))
         for i in range(3):
             for j in range(3):
                 sub_board = board[i, j]
                 prob_matrix[i, j] = self._cachable_main_eval(board=sub_board)
+        return prob_matrix
 
+    def _main_eval(self, board: np.ndarray):
+        if board.shape == (3, 3):  # base case
+            return self._cachable_prob_to_win_sub_board(board=board, depth=self.depth)
+
+        prob_matrix = self._get_prob_matrix(board)
         prob_to_win, prob_to_lose = self._prob_matrix_to_outer_probs(prob_matrix)
         assert 0 <= prob_to_win <= 1
         assert 0 <= prob_to_lose <= 1
