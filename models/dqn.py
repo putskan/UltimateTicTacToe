@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union, Type
 
 import numpy as np
 from torch import nn
@@ -25,12 +25,12 @@ class PrevDQN(nn.Module):
 class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super().__init__()
-        n_observations = 9  # TODO: change, TODO: add prev version
+        n_observations = np.prod(n_observations).item() // 2  # merge planes
         self.flatten = nn.Flatten()
         self.net = nn.Sequential(
-            nn.Linear(n_observations, 32),
+            nn.Linear(n_observations, max(32, n_observations * 2)),
             nn.ReLU(),
-            nn.Linear(32, 64),
+            nn.Linear(max(32, n_observations * 2), 64),
             nn.ReLU(),
             nn.Linear(64, 128),
             nn.ReLU(),
@@ -93,10 +93,53 @@ class DuelingDQN(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        assumes no channel dimension. (B, H, W) or (H, W)
-        """
         x = self.flatten(x)
+        x = self.backbone(x)
+        value_head_res = self.value_head(x)
+        advantage_head_res = self.advantage_head(x)
+        x = value_head_res + advantage_head_res - torch.mean(advantage_head_res, dim=-1, keepdim=True)
+        x = x.reshape(-1, self.out_shape)
+        return x
+
+
+class DuelingDQNConv(nn.Module):
+    """
+    Dueling DQN with CNN backbone
+    relevant for depth=2 ultimateTTT
+    """
+    def __init__(self, _: Union[Tuple[int, ...], int], out_shape: Sequence,
+                 device: torch.device = None,
+                 activation: Type[nn.Module] = nn.ReLU, hidden_dim: int = 32) -> None:
+        super().__init__()
+        self.flatten = nn.Flatten()
+        self.out_shape = out_shape
+        self.backbone = nn.Sequential(
+            nn.Conv2d(9, hidden_dim, device=device, kernel_size=1),
+            activation(),
+            nn.Conv2d(hidden_dim, hidden_dim, device=device, kernel_size=1),
+            activation(),
+            nn.Conv2d(hidden_dim, hidden_dim, device=device, kernel_size=3, padding=1),
+            activation(),
+            nn.Conv2d(hidden_dim, hidden_dim, device=device, kernel_size=3, padding=1),
+            activation(),
+            nn.Conv2d(hidden_dim, hidden_dim, device=device, kernel_size=3, padding=1),
+            activation(),
+            nn.Flatten(),
+        )
+        self.value_head = nn.Sequential(
+            nn.Linear(9 * hidden_dim, 64, device=device),
+            activation(),
+            nn.Linear(64, 1, device=device),
+        )
+        self.advantage_head = nn.Sequential(
+            nn.Linear(9 * hidden_dim, 64, device=device),
+            activation(),
+            nn.Linear(64, np.prod(out_shape).item(), device=device)
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x[..., 0] - x[..., 1]
+        x = x.reshape(-1, 3, 3, 9).permute(0, 3, 1, 2)  # (C x W x H)
         x = self.backbone(x)
         value_head_res = self.value_head(x)
         advantage_head_res = self.advantage_head(x)

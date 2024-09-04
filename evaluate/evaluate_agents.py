@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from itertools import permutations
 from logging import Logger
 import datetime
@@ -9,25 +9,18 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib
-
-from agents.dqn_agent import DQNAgent
-
-matplotlib.use("TkAgg")
+from tqdm import tqdm
+from pettingzoo import AECEnv
 import matplotlib.pyplot as plt
 
-from pettingzoo import AECEnv
-
-from agents.agent import Agent
-from agents.choose_first_action_agent import ChooseFirstActionAgent
-from agents.hierarchical_agent import HierarchicalAgent
-from agents.random_agent import RandomAgent
-from pettingzoo.classic import tictactoe_v3
-from tqdm import tqdm
-
-from agents.unbeatable_classic_ttt_agent.unbeatable_classic_ttt_agent import UnbeatableClassicTTTAgent
 from environments import ultimate_ttt
 from utils.utils import get_action_mask, load_agent
 from utils.logger import get_logger
+from agents.agent import Agent
+from agents.TimedAgentWrapper import TimedAgentWrapper
+
+matplotlib.use("TkAgg")
+
 
 K = 32
 s = 400
@@ -53,12 +46,12 @@ class AgentsEvaluator:
         if logger is None:
             logger = get_logger("evaluate_agents", log_dir_name=None, log_to_console=True)
 
-        self.agents = agents
+        self.agents = [TimedAgentWrapper(agent) for agent in agents]
         self.n_rounds = n_rounds
         self.env = env
         self.logger = logger
         self.wins = np.zeros((n_agents, n_agents), dtype=int)
-        self.players_elo_rating = {agent: INITIAL_ELO_RATE for agent in agents}
+        self.players_elo_rating = {agent: INITIAL_ELO_RATE for agent in self.agents}
         self.player_total_games = 2 * (len(self.agents) - 1) * self.n_rounds
 
     def play_single_game(self, players: Tuple[Agent, Agent]) -> Tuple[float, float]:
@@ -148,13 +141,17 @@ class AgentsEvaluator:
         players_win_percentage_dict = {self.agents[i]: players_win_percentage[i] for i in range(n_agents)}
         sorted_player_win_percentage = sorted(players_win_percentage_dict.items(), key=lambda item: item[1], reverse=True)
         sorted_elo_ratings = sorted(self.players_elo_rating.items(), key=lambda item: item[1], reverse=True)
+        player_avg_time = {str(agent): agent.avg_time for agent in self.agents}
+        sorted_times = sorted(player_avg_time.items(), key=lambda item: item[1], reverse=True)
 
         # log results
         self.logger.info(f'n_rounds={self.n_rounds}, n_agents={len(self.agents)}, '
                     f'total_games={self.n_rounds * len(self.agents) * (len(self.agents) - 1)}')
         self.log_final_results("Winning Percentage", sorted_player_win_percentage, use_percentage=True)
         self.log_final_results("Elo Rating", sorted_elo_ratings)
+        self.log_final_results("Average Time per Move (in seconds)", sorted_times)
         self.plot_results()
+        self.plot_average_times(player_avg_time)
 
     @property
     def log_folder(self):
@@ -179,19 +176,37 @@ class AgentsEvaluator:
         draws_df = pd.DataFrame(draws, index=self.agents, columns=self.agents)
 
         # Visualizing the matrices using heatmaps
-        plt.figure(figsize=(18, 6))
+        plt.figure(figsize=(18, 12))
 
-        plt.subplot(1, 3, 1)
+        plt.subplot(2, 3, 1)
         sns.heatmap(wins_df, annot=True, fmt="d", cmap="Blues", cbar=False)
         plt.title('Wins')
 
-        plt.subplot(1, 3, 2)
+        plt.subplot(2, 3, 2)
         sns.heatmap(losses_df, annot=True, fmt="d", cmap="Reds", cbar=False)
         plt.title('Losses')
 
-        plt.subplot(1, 3, 3)
+        plt.subplot(2, 3, 3)
         sns.heatmap(draws_df, annot=True, fmt="d", cmap="Greens", cbar=False)
         plt.title('Draws')
+
+        # bar plot for total scores
+        total_scores = wins_df.sum(axis=1) + draws_df.sum(axis=1) * 0.5  # Wins + 0.5 * Draws
+        plt.subplot(2, 3, 4)
+        colors = sns.color_palette("rainbow", len(self.wins))
+
+        total_scores.sort_values().plot(kind='barh', color=colors)
+        plt.title('Total Scores by Agent')
+        plt.xlabel('Score')
+        plt.ylabel('Agent')
+
+        # Elo rating
+        elo_ratings = pd.Series(self.players_elo_rating).sort_values()
+        plt.subplot(2, 3, 5)
+        elo_ratings.plot(kind='barh', color=colors)
+        plt.title('Elo Ratings by Agent')
+        plt.xlabel('Elo Rating')
+        plt.ylabel('Agent')
 
         plt.suptitle(f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)', fontsize=14)
         plt.tight_layout()
@@ -200,18 +215,67 @@ class AgentsEvaluator:
             plt.savefig(self.log_folder / 'results.png')
         plt.show()
 
+    def plot_average_times(self, agents_times: Dict[str, float], save_plot: bool = True) -> None:
+        """
+        Plots the results as 3 heatmaps of wins, loses and draws.
+        Optionally also saves the plots to the logger's folder.
+        :param agents_times: a dictionary of agent names and their average time per move
+        :param save_plot: whether to save the plot or not
+        """
+        agents_times = pd.Series(agents_times).sort_values()
+        palette = sns.color_palette("crest")
+
+        plt.figure(figsize=(10, 6))
+        bars = plt.bar(agents_times.index, agents_times.values, color=palette)
+        plt.xlabel('Agent')
+        plt.ylabel('Average Time (seconds)')
+        plt.title('Average Time Per Agent')
+
+        # Add the value labels on top of each bar
+        for bar, value in zip(bars, agents_times.values):
+            plt.text(
+                bar.get_x() + bar.get_width() / 2,  # X position: center of the bar
+                bar.get_height(),
+                f'{value:.2f}',
+                ha='center',
+                va='bottom'
+            )
+
+        plt.xlabel('Agent')
+        plt.ylabel('Average Time (seconds)')
+        plt.title('Average Time Per Agent')
+        if self.log_folder and save_plot:
+            plt.savefig(self.log_folder / 'avg_time_results.png')
+        plt.show()
+
 
 if __name__ == '__main__':
+    from agents.dqn_agent import DQNAgent
+    from agents.search_agents.alpha_beta import AlphaBeta
+    from agents.search_agents.mcts import MCTSAgent
+    from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
+    from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
+    from agents.choose_first_action_agent import ChooseFirstActionAgent
+    from agents.hierarchical_agent import HierarchicalAgent
+    from agents.random_agent import RandomAgent
+    from pettingzoo.classic import tictactoe_v3
+
     parser = argparse.ArgumentParser(description='Evaluate agents and log results')
     parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
     args = parser.parse_args()
 
     env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
-    dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
-    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), dqn_agent]
-
+    # dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
+    # agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), dqn_agent]
+    agents = [
+        HierarchicalAgent(),
+        RandomAgent(),
+        # MCTSAgent(),
+        # AlphaBeta(2, AEWinningPossibilities()),
+        AlphaBeta(2, ProbabilisticEstimator()),
+    ]
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=args.log_to_console)
-    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=100)
+    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=50)
     agents_evaluator.evaluate_agents()

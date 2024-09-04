@@ -7,6 +7,7 @@ import torch.optim as optim
 import random
 
 from pettingzoo import AECEnv
+from torch.distributions import Categorical
 from torch.optim.lr_scheduler import ExponentialLR
 
 from agents.trainable_agent import TrainableAgent
@@ -19,7 +20,8 @@ class DQNAgent(TrainableAgent):
     def __init__(self, state_size: Union[Tuple[int], int], action_size: int,
                  learning_rate: float = 1e-3, discount_factor: float = 0.6,
                  epsilon: float = 0.4, epsilon_decay: float = 0.9999, epsilon_min: float = 0.1,
-                 batch_size: int = 128, tau: float = 0.005, use_lr_scheduler: bool = False, model_cls: Type = DQN):
+                 batch_size: int = 128, tau: float = 0.005, use_lr_scheduler: bool = False, model_cls: Type = DQN,
+                 min_lr: float = 5e-6, soft_play: bool = False):
         super().__init__()
         self.state_size = state_size
         self.action_size = action_size
@@ -30,6 +32,8 @@ class DQNAgent(TrainableAgent):
         self.batch_size = batch_size
         self.tau = tau
         self.use_lr_scheduler = use_lr_scheduler
+        self.min_lr = min_lr
+        self.soft_play = soft_play,
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Q-Networks
@@ -47,6 +51,13 @@ class DQNAgent(TrainableAgent):
 
         self.use_eps_greedy = False
 
+    def set_soft_play(self, soft_play: bool) -> None:
+        self.soft_play = soft_play
+
+    def copy_networks(self, other: 'DQNAgent'):
+        self.policy_net.load_state_dict(other.policy_net.state_dict())
+        self.target_net.load_state_dict(other.target_net.state_dict())
+
     def eval(self) -> None:
         super().eval()
         self.use_eps_greedy = False
@@ -55,20 +66,27 @@ class DQNAgent(TrainableAgent):
         super().train()
         self.use_eps_greedy = True
 
+    def get_q_values(self, obs: Dict[str, np.ndarray]) -> torch.Tensor:
+        state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
+        action_mask = obs['action_mask']
+        with torch.no_grad():
+            action = self.policy_net(state)
+        action[:, (~action_mask.astype(bool)).tolist()] = -float('inf')
+        return action
+
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
              curr_agent_str: str, action_mask: Optional[np.ndarray],
              info: Dict[str, Any]) -> Any:
         if self.use_eps_greedy and random.random() <= self.epsilon:
-            # todo - remove the change
             return env.action_space(curr_agent_str).sample(action_mask).item()
-            # return env.action_space.sample(action_mask.astype(np.int8)).item()
 
-        state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
+        q_values = self.get_q_values(obs)
+        if self.soft_play:
+            probs = torch.nn.functional.softmax(q_values, dim=-1)
+            sampled_idx = Categorical(probs).sample().item()
+            return sampled_idx
 
-        with torch.no_grad():
-            action = self.policy_net(state)
-            action[:, (~action_mask.astype(bool)).tolist()] = -float('inf')
-            return action.argmax().item()
+        return q_values.argmax().item()
 
     def train_update(self, replay_buffer: ReplayBuffer) -> Optional[Dict[str, Any]]:
         if len(replay_buffer) < self.batch_size * 5:
@@ -79,11 +97,11 @@ class DQNAgent(TrainableAgent):
         (states, actions, rewards, next_states, dones, action_masks,
          curr_player_idxs, next_action_mask, _, _) = zip(*batch)
 
-        states = torch.FloatTensor(states).to(self.device)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
+        states = torch.FloatTensor(np.array(states), device=self.device)
+        next_states = torch.FloatTensor(np.array(next_states), device=self.device)
+        actions = torch.LongTensor(np.array(actions), device=self.device).unsqueeze(1)
+        rewards = torch.FloatTensor(np.array(rewards), device=self.device)
+        dones = torch.FloatTensor(np.array(dones), device=self.device)
 
         # compute Q-values for current states
         q_values = self.policy_net(states).gather(1, actions).squeeze(1)
@@ -112,6 +130,6 @@ class DQNAgent(TrainableAgent):
             target_net_state_dict[key] = (policy_net_state_dict[key] * self.tau +
                                           target_net_state_dict[key] * (1 - self.tau))
         self.target_net.load_state_dict(target_net_state_dict)
-        if self.use_lr_scheduler:
+        if self.use_lr_scheduler and self.lr_scheduler.get_last_lr()[0] > self.min_lr:
             self.lr_scheduler.step()
         return {'loss': loss.item(), 'epsilon': self.epsilon, 'lr': self.lr_scheduler.get_last_lr()[0]}
