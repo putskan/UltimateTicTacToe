@@ -1,91 +1,181 @@
 from __future__ import annotations
+
 import math
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import numpy as np
 from pettingzoo import AECEnv
 
 from agents.agent import Agent
+from agents.dqn_agent import DQNAgent
+from agents.reinforce_agent import ReinforceAgent
 from evaluate.example_usage import play
-from utils.utils import get_action_mask, deepcopy_env
-
-C = 2
+from evaluation_functions.dqn_evaluation import DQNEvaluation
+from evaluation_functions.evaluation_function import EvaluationFunction
+from policy_functions.policy_function import PolicyFunction
+from policy_functions.reinforce_policy import ReinforcePolicy
+from policy_functions.soft_dqn_policy import SoftDQNPolicy
+from utils.constants import INF
+from utils.utils import get_action_mask, deepcopy_env, load_agent
 
 
 class Node:
     """Node in the MCTS tree"""
-    def __init__(self, env: AECEnv, action: int = None, parent: Node = None):
+    def __init__(self, state_env: AECEnv, policy_vals: Optional[np.ndarray] = None,
+                 action: int = None, parent: Node = None, c: float = 2, shuffle_move_order: bool = False):
         """
-        :param env: the environment of the game for this node
+        :param state_env: the environment of the game for this node. Note: This object should implement an eqal
+                    method and hash method. For uttt environment, the env should be unwrapped.
         :param action: the last action played in the env
         :param parent: the parent node of this node
+        :param c: the exploration parameter
+        :param shuffle_move_order: whether to shuffle the order of valid actions
         """
         self.value = 0
         self.n = 0
-        self.state_env = env
-        self.action = action
-        self.children = []
+        self.state_env = state_env
+        self.action: int = action
         self.parent = parent
+        self.c = c
+        self.policy_vals = policy_vals
+        self.depth = self.parent.depth + 1 if self.parent is not None else 1
 
-        _, _, termination, truncation, _ = env.last()
+        obs, _, termination, truncation, info = state_env.last()
+        action_mask = get_action_mask(obs, info)
         self.is_terminal = termination or truncation
+        self.valid_actions = np.argwhere(action_mask).flatten()
+        if shuffle_move_order:
+            np.random.shuffle(self.valid_actions)
+        self.children: List[Optional[Node]] = [None] * len(self.valid_actions)
+        self.action_index_mapping = {action: i for i, action in enumerate(self.valid_actions)}
+
+    def get_child_by_action(self, action: int) -> Node:
+        """Get the child node by the action"""
+        index = self.action_index_mapping[action]
+        return self.children[index]
 
     def add_child(self, child: Node) -> None:
         """Add a child to the node"""
-        self.children.append(child)
+        if self.get_child_by_action(child.action) is None:
+            self.children[self.action_index_mapping[child.action]] = child
 
     def update(self, value):
         """Update the value and n count of the node"""
         self.value += value
         self.n += 1
 
+    def uct(self, prob: float):
+        """Compute the UCT value of the node"""
+        avg_value = self.value / self.n if self.n > 0 else 0
+        return avg_value + (self.c * prob) / (1 + self.n)
+
     @property
     def ucb1(self):
         """Compute the UCB1 value of the node"""
         if self.n == 0:
             return float("inf")
-        return self.value / self.n + C * math.sqrt(math.log(self.parent.n, math.e) / self.n)
+        return self.value / self.n + self.c * math.sqrt(math.log(self.parent.n, math.e) / self.n)
 
-    def get_max_ucb1_child(self):
+    def get_max_action(self) -> int:
         """Returns the child with the highest UCB1 value, or None if the node has no children
         (or if all of them are terminal nodes)"""
-        if not self.children:
-            return None, None
+        max_val = float("-inf")
+        max_action = None
+        for action in self.valid_actions:
+            action = action.item()
+            child = self.get_child_by_action(action)
+            if self.policy_vals is None:
+                val = float("inf") if child is None else child.ucb1
+            else:  # value is according to policy or UCT value
+                prob = self.policy_vals[action]
+                val = prob if child is None else child.uct(prob)
+            if val > max_val:
+                max_val = val
+                max_action = action
+        assert max_action is not None, "No action found with max UCB1/UCT value"
+        return max_action
 
-        max_i = 0
-        max_ucb1 = float("-inf")
+    def __eq__(self, other: Node) -> bool:
+        return self.state_env == other.state_env
 
-        for i, child in enumerate(self.children):
-            ucb1 = child.ucb1
-
-            if ucb1 > max_ucb1 and not child.is_terminal:
-                max_ucb1 = ucb1
-                max_i = i
-        if max_ucb1 == float("-inf"):
-            return None, None
-        return self.children[max_i], max_i
+    def __hash__(self) -> int:
+        return hash(self.state_env)
 
 
 class MCTSAgent(Agent):
     """Monte Carlo Tree Search agent"""
-    def __init__(self, shuffle_move_order: bool = True,
+    def __init__(self, shuffle_move_order: bool = False,
                  n_iter_min=80, n_iter_max=400, action_n_thresh=12,
-                 is_stochastic: bool = False,
+                 is_stochastic: bool = False, c: float = 2,
+                 epsilon: float = 0.5, min_epsilon: float = 0.1,
+                 evaluation_function: EvaluationFunction = None,
+                 policy_function: PolicyFunction = None,
                  *args, **kwargs):
         """
-        :param shuffle_move_order: if True, adds the children (/actions) of each node in a random order
+        :note: If you provide an evaluation function, make sure its return values are centered around 0.
+               Also, it is best if the values are in the range [-1, 1] (meaning -1 for loss and 1 for win),
+               and if not, make sure to adjust the c parameter that balances exploration vs. exploitation.
+        :param shuffle_move_order: if True, shuffles the valid actions order of each node.
+               Should be True if policy function is not provided.
         :param n_iter: number of iterations to run the MCTS algorithm
         :param is_stochastic: if True, the agent chooses actions stochastically
+        :param c: the exploration parameter
+        :param epsilon: controls the amount of exploration for higher nodes in the tree
+        :param min_epsilon: the minimum value of epsilon for exploration
+        :param evaluation_function: (optional) the evaluation function to use in the MCTS algorithm.
+                                    If not provided, uses random rollout.
+        :param policy_function: (optional) the policy function to use in the MCTS algorithm.
         """
         super().__init__(*args, **kwargs)
+        if 'agent_name' not in kwargs:
+            details = f'Policy {policy_function.__class__.__name__}' if policy_function is not None else ''
+            details += f' Eval {evaluation_function.__class__.__name__}' if evaluation_function is not None else ''
+            self.agent_name = f'{self.__class__.__name__} min {n_iter_min} max {n_iter_max} ({details})'
         self.n_iter_min = n_iter_min
         self.n_iter_max = n_iter_max
         self.action_n_thresh = action_n_thresh
         self.shuffle_move_order = shuffle_move_order
         self.is_stochastic = is_stochastic
+        self.eval_fn = evaluation_function
+        self.policy_fn = policy_function
+        self.c = c
+        self.epsilon = epsilon
+        self.min_epsilon = min_epsilon
+
+        self.env_transposition_table = dict()
+        self.curr_root_node = None
+
+    def _update_root_node(self, child_env: AECEnv) -> None:
+        """Update the root node to the child node with the given environment"""
+        for action in self.curr_root_node.valid_actions:
+            child = self.curr_root_node.get_child_by_action(action.item())
+            if child is not None and child.state_env == child_env:
+                self.curr_root_node = child
+                self.curr_root_node.parent = None
+                return
+
+        # print("Child env not found in the root node's children!")
+        self.curr_root_node = None
+
+    def _add_env_to_transposition_table(self, unwrapped_env: AECEnv) -> AECEnv:
+        """
+        Add the environment to the transposition table if it is not already there.
+        :param unwrapped_env: the environment to add. Note: This env should be unwrapped, i.e. as in the Node class.
+        """
+        if unwrapped_env not in self.env_transposition_table:
+            self.env_transposition_table[unwrapped_env] = unwrapped_env
+        return self.env_transposition_table[unwrapped_env]
+
+    def reset(self) -> None:
+        """Reset the agent to its initial state"""
+        super().reset()
+        self.env_transposition_table = dict()
+        self.curr_root_node = None
 
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int, curr_agent_str: str, action_mask: Optional[np.ndarray],
              info: Dict[str, Any]) -> Any:
+        if self.curr_root_node is not None:
+            self._update_root_node(env.unwrapped)
 
         n_iter = self.n_iter_min
         if action_mask is not None:
@@ -96,69 +186,126 @@ class MCTSAgent(Agent):
         action = self.run_mcts(env, n_iter)
         return action
 
-    def run_mcts(self, env: AECEnv, n_iter: int) -> float:
+    def _create_root_node(self, env: AECEnv) -> Node:
+        """Create the root node of the MCTS tree"""
+        copy_env = deepcopy_env(env)
+        obs, reward, termination, truncation, info = copy_env.last()
+        action_mask = get_action_mask(obs, info)
+        if isinstance(obs, dict):
+            obs = obs["observation"]
+        policy_values = self.policy_fn(obs, action_mask) if self.policy_fn is not None else None
+        copy_env = self._add_env_to_transposition_table(copy_env.unwrapped)
+        root_node = Node(copy_env, policy_values, None, None, c=self.c, shuffle_move_order=self.shuffle_move_order)
+        return root_node
+
+    def _calc_root_children_soft_vals(self) -> np.ndarray:
+        """Calculate the softmax values of the children of the given node"""
+        vals = np.array([child.value / child.n if child is not None and child.n and not child.is_terminal
+                         else -INF for child in self.curr_root_node.children])
+        soft_vals = np.exp(vals) / np.exp(vals).sum()
+        return soft_vals
+
+    def run_mcts(self, original_env: AECEnv, n_iter: int) -> float:
         """
         Run the MCTS algorithm
-        :param env: playing environment
+        :param original_env: playing environment
         :return: the next action to play
         """
-        root_node = Node(env, None, None)
-        self._expand(root_node)
+        if self.curr_root_node is None:
+            self.curr_root_node = self._create_root_node(original_env)
+            max_action = self.curr_root_node.get_max_action()
+            self._expand(self.curr_root_node, max_action)
+        root_node = self.curr_root_node
 
         for _ in range(n_iter):
             leaf_node = self._select_expand(root_node)
             value = self._rollout(leaf_node)
             self._backpropagate(leaf_node, value)
 
-        vals = [(child.value / child.n) if child.n else 0 for child in root_node.children]
-        soft_vals = np.exp(vals) / sum(np.exp(vals))
+        immediate_action = self._check_for_immediate_winning_action()
+        if immediate_action is not None:
+            return immediate_action
 
+        soft_vals = self._calc_root_children_soft_vals()
         # choose action of the child with the highest value (deterministic)
-        action = root_node.children[np.argmax(soft_vals)].action
+        action_i = np.argmax(soft_vals)
         if self.is_stochastic:
             # choose action stochastically
-            action = np.random.choice([child.action for child in root_node.children], p=soft_vals)
-        return action
+            action_i = np.random.choice(len(root_node.children), p=soft_vals)
+        chosen_child = root_node.children[action_i]
+        assert chosen_child is not None, "Chosen child should not be None!"
+        if not chosen_child.is_terminal:
+            self._update_root_node(chosen_child.state_env)
+        return chosen_child.action
 
-    def _expand(self,  node: Node) -> bool:
+    def _check_for_immediate_winning_action(self) -> Optional[int]:
+        best_action = None
+        for action in self.curr_root_node.valid_actions:
+            child = self.curr_root_node.get_child_by_action(action.item())
+            if child is not None and child.is_terminal:
+                _, reward, _, _, _ = child.state_env.last()
+                reward *= -1
+                assert reward != -1, "Loss should not happen for children of the root node!"
+                if reward == 1:  # win
+                    return child.action
+                else:  # draw
+                    best_action = child.action
+        return best_action
+
+    def _expand(self,  node: Node, action_child_to_expand: int) -> bool:
         """Expand the node by adding its children to the tree, if possible"""
-        obs, reward, termination, truncation, info = node.state_env.last()
         # don't expand terminal nodes or previously expanded ones
-        if node.is_terminal or node.children:
+        if node.is_terminal or node.get_child_by_action(action_child_to_expand) is not None:
             return False
 
+        curr_env = deepcopy_env(node.state_env)
+        curr_env.step(action_child_to_expand)
+        obs, reward, termination, truncation, info = curr_env.last()
         action_mask = get_action_mask(obs, info)
-        valid_actions = np.where(action_mask)[0]
-        if self.shuffle_move_order:
-            np.random.shuffle(valid_actions)
+        if isinstance(obs, dict):
+            obs = obs["observation"]
+        policy_values = self.policy_fn(obs, action_mask) if self.policy_fn is not None else None
+        # add env to transposition table
+        curr_env = self._add_env_to_transposition_table(curr_env)
+        assert curr_env in self.env_transposition_table, "Node not in the transpo table!"
 
-        for action in valid_actions.tolist():
-            curr_env = deepcopy_env(node.state_env)
-            curr_env.step(action)
-            new_node = Node(curr_env, action, node)
-            node.add_child(new_node)
+        new_node = Node(curr_env, policy_values, action_child_to_expand, node, c=self.c, shuffle_move_order=self.shuffle_move_order)
+        node.add_child(new_node)
         return True
 
     def _select_expand(self, root_node: Node) -> Node:
         """Select a node and expands it if possible, then returns the expanded node"""
         prev_node = root_node
         cur_node = root_node
-        while cur_node is not None and cur_node.children:
+        action_to_expand = None
+        while cur_node is not None and not cur_node.is_terminal:
             prev_node = cur_node
-            cur_node, idx = cur_node.get_max_ucb1_child()
+            action_to_expand = self._select_next_action(cur_node)
+            cur_node = cur_node.get_child_by_action(action_to_expand)
+        assert action_to_expand is not None, "No action to expand!"
+        self._expand(prev_node, action_to_expand)
+        return prev_node.get_child_by_action(action_to_expand)
 
-        if cur_node is not None:
-            has_expanded = self._expand(cur_node)
-            if has_expanded:
-                cur_node2, idx2 = cur_node.get_max_ucb1_child()
-                if cur_node2 is not None:
-                    return cur_node2
+    def _select_next_action(self, node: Node) -> int:
+        """Select the next action based on the current node"""
+        d_epsilon = self.epsilon / node.depth
+        if d_epsilon > self.min_epsilon and d_epsilon > np.random.rand():
+                return np.random.choice(node.valid_actions)
+        return node.get_max_action()
 
-        return cur_node or prev_node
+    def _rollout(self, node: Node) -> float:
+        """If an evaluation function is provided, call it on the node's env. Otherwise, simulate the game
+        from the current node until the end and return the reward"""
+        if self.eval_fn is not None:
+            observation, reward, termination, truncation, info = node.state_env.last()
+            if termination or truncation:
+                val = node.state_env.rewards[node.state_env.agent_selection]
+                return (val + 1) / 2
+            curr_agent_idx = node.state_env.agent_selection
+            # TODO: check that observation and agent index are correct
+            val = self.eval_fn(node.state_env, observation, curr_agent_idx)
+            return (val + 1) / 2
 
-    @staticmethod
-    def _rollout(node: Node) -> float:
-        """Simulate a game from the current node until the end and return the reward"""
         simulation_env = deepcopy_env(node.state_env)
         invert_reward = True  # invert the reward for the opponent
 
@@ -190,6 +337,14 @@ class MCTSAgent(Agent):
 
 
 if __name__ == "__main__":
+    import datetime
+    from agents.search_agents.alpha_beta import AlphaBeta
+    from evaluate.evaluate_agents import AgentsEvaluator
+    from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
+    from evaluation_functions.constant_evaluation import ConstantEvaluation
+    from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
+    from evaluation_functions.sub_boards_won import SubBoardsWon
+    from utils.logger import get_logger
     from environments import ultimate_ttt
     from agents.choose_first_action_agent import ChooseFirstActionAgent
     from agents.random_agent import RandomAgent
@@ -198,10 +353,29 @@ if __name__ == "__main__":
     render_mode = "human"
     render_mode = None
     env = ultimate_ttt.env(render_mode=render_mode, depth=2)
+    dqn_agent: DQNAgent = load_agent("../../train/logs/DQNAgent/dqn_from_ben/checkpoint_65000.pickle")
+    reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/reinforce_d2_from_ben/checkpoint_86000.pickle")
     agents = [
         RandomAgent(),
-        MCTSAgent(is_stochastic=True),
-        # ChooseFirstActionAgent(),
         # HierarchicalAgent(),
+        # AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator()),
+        # AlphaBeta(depth=2, evaluation_function=DQNEvaluation(dqn_agent)),
+        # AlphaBeta(depth=2, evaluation_function=AEWinningPossibilities()),
+        # MCTSAgent(policy_function=SoftDQNPolicy(dqn_agent),
+        #           n_iter_min=40, n_iter_max=40),
+        # MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
+        #           n_iter_min=40, n_iter_max=40,
+        #           evaluation_function=DQNEvaluation(dqn_agent)),
+        MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
+                  n_iter_min=40, n_iter_max=40),
+        # AlphaBeta(depth=1, evaluation_function=ProbabilisticEstimator()),
+        # ChooseFirstActionAgent(),
+        # MCTSAgent(),
+        # MCTSAgent(policy_function=ReinforcePolicy(), n_iter_min=20, n_iter_max=20),
+        # MCTSAgent(n_iter_min=20, n_iter_max=160),
     ]
-    play(env, agents, n_games=5)
+    # logger_file_name = f"../../evaluate/logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    # logger = get_logger("evaluate_agents", logger_file_name, log_to_console=True)
+    # agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=10)
+    # agents_evaluator.evaluate_agents()
+    play(env, agents, n_games=20)

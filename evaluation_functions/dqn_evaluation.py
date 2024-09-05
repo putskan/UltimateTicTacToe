@@ -26,4 +26,4 @@ class DQNEvaluation(EvaluationFunction):
             sampled_idx = Categorical(probs).sample()
             return q_values[:, sampled_idx].item()
 
-        return q_values.max().item()
+        return q_values.clip(-1, 1).max().item()

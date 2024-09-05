@@ -1,4 +1,5 @@
 import copy
+import hashlib
 from typing import Any, List
 
 import numpy as np
@@ -107,3 +108,12 @@ def deepcopy_env(env: AECEnv) -> AECEnv:
         unwrapped_env.board_renderer = board_renderer
 
     return copied_env
+
+
+def hash_np_array(array: np.ndarray) -> int:
+    """
+    hash a numpy array
+    :param array: the array to hash
+    :return: the hash
+    """
+    return int(hashlib.sha1(array).hexdigest(), 16)

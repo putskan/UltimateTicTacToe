@@ -1,9 +1,10 @@
+import hashlib
 from typing import Any
 
 import numpy as np
 
 from utils.piece import Piece
-from utils.utils import calculate_winning_combinations, check_for_winner_classic
+from utils.utils import calculate_winning_combinations, check_for_winner_classic, hash_np_array
 
 
 class Board:
@@ -16,6 +17,9 @@ class Board:
     def __eq__(self, other: Any):
         if isinstance(other, Board):
             return np.array_equal(self.squares, other.squares)
+
+    def __hash__(self):
+        return hash_np_array(self.squares)
 
     def setup(self):
         self.winning_combinations = calculate_winning_combinations()

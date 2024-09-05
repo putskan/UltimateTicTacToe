@@ -56,6 +56,8 @@ def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int =
             else:
                 players = [opponent_agent, agent]
 
+            for player in players:
+                player.reset()
             curr_player_idx = 0
             cumulative_rewards = [0, 0]
 
@@ -191,6 +193,7 @@ def train(env: AECEnv, agent: TrainableAgent,
 
         for player in players:
             player.train()
+            player.reset()
 
         curr_player_idx = 0
         if curr_game > 0 and curr_game % render_every == 0 and renderable_env is not None:

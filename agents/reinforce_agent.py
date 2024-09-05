@@ -10,6 +10,7 @@ from torch import Tensor
 
 from agents.trainable_agent import TrainableAgent
 from models.reinforce import ReinforcePolicy
+from utils.constants import INF
 from utils.replay_buffer import ReplayBuffer
 
 
@@ -48,19 +49,18 @@ class ReinforceAgent(TrainableAgent):
         actions = self._select_actions(state, action_mask)
         return actions.item()
 
-    def _apply_policy_net(self, states: Tensor, action_masks: Tensor) -> Categorical:
+    def apply_policy_net(self, states: Tensor, action_masks: Tensor) -> Tensor:
         """
         Apply the policy network to the states and return a Categorical distribution of the actions
         according to the action masks
         :param states: The states to apply the policy network to
         :param action_masks: The action masks that correspond to the states
-        :return: a Categorical distribution of the actions corresponding to the states
+        :return: probabilities of the legal actions according to the policy network
         """
         policy_vals = self.policy_net(states)
-        policy_vals[action_masks.bitwise_not()] = -float('inf')
+        policy_vals[action_masks.bitwise_not()] = -INF
         probs = nn.functional.softmax(policy_vals, dim=-1)
-        m = Categorical(probs)
-        return m
+        return probs
 
     def _select_actions(self, states: Tensor, action_masks: Tensor) -> Tensor:
         """
@@ -69,7 +69,8 @@ class ReinforceAgent(TrainableAgent):
         :param action_masks: The action masks that correspond to the states
         :return: The selected actions
         """
-        m = self._apply_policy_net(states, action_masks)
+        probs = self.apply_policy_net(states, action_masks)
+        m = Categorical(probs)
         actions = m.sample()
         return actions
 
@@ -81,7 +82,8 @@ class ReinforceAgent(TrainableAgent):
         :param actions: The actions to get the log probabilities for
         :return: The log probabilities of the actions
         """
-        m = self._apply_policy_net(states, action_masks)
+        probs = self.apply_policy_net(states, action_masks)
+        m = Categorical(probs)
         return m.log_prob(actions)
 
     def train_update(self, replay_buffer: ReplayBuffer) -> Optional[Dict[str, Any]]:
