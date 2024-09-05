@@ -11,6 +11,10 @@ import seaborn as sns
 import matplotlib
 from tqdm import tqdm
 from pettingzoo import AECEnv
+
+from policy_functions.reinforce_policy import ReinforcePolicy
+
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 from environments import ultimate_ttt
@@ -260,6 +264,11 @@ if __name__ == '__main__':
     from agents.choose_first_action_agent import ChooseFirstActionAgent
     from agents.hierarchical_agent import HierarchicalAgent
     from agents.random_agent import RandomAgent
+    from agents.reinforce_agent import ReinforceAgent
+    from agents.search_agents.alpha_beta import AlphaBeta
+    from agents.search_agents.mcts import MCTSAgent
+    from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
+    from policy_functions.policy_function import PolicyFunction
     from pettingzoo.classic import tictactoe_v3
 
     parser = argparse.ArgumentParser(description='Evaluate agents and log results')
@@ -267,15 +276,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
+    # reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
+    reinforce_agent: ReinforceAgent = load_agent(
+        "../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
     # dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
-    # agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), dqn_agent]
-    agents = [
-        HierarchicalAgent(),
-        RandomAgent(),
-        # MCTSAgent(),
-        # AlphaBeta(2, AEWinningPossibilities()),
-        AlphaBeta(2, ProbabilisticEstimator()),
-    ]
+    # agents = [
+    #     HierarchicalAgent(),
+    #     RandomAgent(),
+    #     # MCTSAgent(),
+    #     # AlphaBeta(2, AEWinningPossibilities()),
+    #     AlphaBeta(2, ProbabilisticEstimator()),
+    # ]
+    mcts_agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent), n_iter_min=20)
+    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), mcts_agent, AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator())]
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=args.log_to_console)
