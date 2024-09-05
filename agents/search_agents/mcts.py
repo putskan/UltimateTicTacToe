@@ -22,13 +22,14 @@ from utils.utils import get_action_mask, deepcopy_env, load_agent
 class Node:
     """Node in the MCTS tree"""
     def __init__(self, state_env: AECEnv, policy_vals: Optional[np.ndarray] = None,
-                 action: int = None, parent: Node = None, c: float = 2):
+                 action: int = None, parent: Node = None, c: float = 2, shuffle_move_order: bool = False):
         """
         :param state_env: the environment of the game for this node. Note: This object should implement an eqal
                     method and hash method. For uttt environment, the env should be unwrapped.
         :param action: the last action played in the env
         :param parent: the parent node of this node
         :param c: the exploration parameter
+        :param shuffle_move_order: whether to shuffle the order of valid actions
         """
         self.value = 0
         self.n = 0
@@ -43,6 +44,8 @@ class Node:
         action_mask = get_action_mask(obs, info)
         self.is_terminal = termination or truncation
         self.valid_actions = np.argwhere(action_mask).flatten()
+        if shuffle_move_order:
+            np.random.shuffle(self.valid_actions)
         self.children: List[Optional[Node]] = [None] * len(self.valid_actions)
         self.action_index_mapping = {action: i for i, action in enumerate(self.valid_actions)}
 
@@ -101,7 +104,7 @@ class Node:
 
 class MCTSAgent(Agent):
     """Monte Carlo Tree Search agent"""
-    def __init__(self, shuffle_move_order: bool = True,
+    def __init__(self, shuffle_move_order: bool = False,
                  n_iter_min=80, n_iter_max=400, action_n_thresh=12,
                  is_stochastic: bool = False, c: float = 2,
                  epsilon: float = 0.5, min_epsilon: float = 0.1,
@@ -112,7 +115,8 @@ class MCTSAgent(Agent):
         :note: If you provide an evaluation function, make sure its return values are centered around 0.
                Also, it is best if the values are in the range [-1, 1] (meaning -1 for loss and 1 for win),
                and if not, make sure to adjust the c parameter that balances exploration vs. exploitation.
-        :param shuffle_move_order: if True, adds the children (/actions) of each node in a random order
+        :param shuffle_move_order: if True, shuffles the valid actions order of each node.
+               Should be True if policy function is not provided.
         :param n_iter: number of iterations to run the MCTS algorithm
         :param is_stochastic: if True, the agent chooses actions stochastically
         :param c: the exploration parameter
@@ -191,7 +195,7 @@ class MCTSAgent(Agent):
             obs = obs["observation"]
         policy_values = self.policy_fn(obs, action_mask) if self.policy_fn is not None else None
         copy_env = self._add_env_to_transposition_table(copy_env.unwrapped)
-        root_node = Node(copy_env, policy_values, None, None, c=self.c)
+        root_node = Node(copy_env, policy_values, None, None, c=self.c, shuffle_move_order=self.shuffle_move_order)
         return root_node
 
     def _calc_root_children_soft_vals(self) -> np.ndarray:
@@ -265,7 +269,7 @@ class MCTSAgent(Agent):
         curr_env = self._add_env_to_transposition_table(curr_env)
         assert curr_env in self.env_transposition_table, "Node not in the transpo table!"
 
-        new_node = Node(curr_env, policy_values, action_child_to_expand, node, c=self.c)
+        new_node = Node(curr_env, policy_values, action_child_to_expand, node, c=self.c, shuffle_move_order=self.shuffle_move_order)
         node.add_child(new_node)
         return True
 
