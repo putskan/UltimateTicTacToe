@@ -283,8 +283,8 @@ class MCTSAgent(Agent):
             action_to_expand = self._select_next_action(cur_node)
             cur_node = cur_node.get_child_by_action(action_to_expand)
         assert action_to_expand is not None, "No action to expand!"
-        has_expanded = self._expand(prev_node, action_to_expand)
-        return prev_node.get_child_by_action(action_to_expand) if has_expanded else prev_node
+        self._expand(prev_node, action_to_expand)
+        return prev_node.get_child_by_action(action_to_expand)
 
     def _select_next_action(self, node: Node) -> int:
         """Select the next action based on the current node"""
