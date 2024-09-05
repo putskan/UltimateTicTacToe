@@ -43,12 +43,18 @@ class Node:
         action_mask = get_action_mask(obs, info)
         self.is_terminal = termination or truncation
         self.valid_actions = np.argwhere(action_mask).flatten()
-        self.children: List[Optional[Node]] = [None] * len(action_mask)
+        self.children: List[Optional[Node]] = [None] * len(self.valid_actions)
+        self.action_index_mapping = {action: i for i, action in enumerate(self.valid_actions)}
+
+    def get_child_by_action(self, action: int) -> Node:
+        """Get the child node by the action"""
+        index = self.action_index_mapping[action]
+        return self.children[index]
 
     def add_child(self, child: Node) -> None:
         """Add a child to the node"""
-        if self.children[child.action] is None:
-            self.children[child.action] = child
+        if self.get_child_by_action(child.action) is None:
+            self.children[self.action_index_mapping[child.action]] = child
 
     def update(self, value):
         """Update the value and n count of the node"""
@@ -74,7 +80,7 @@ class Node:
         max_action = None
         for action in self.valid_actions:
             action = action.item()
-            child = self.children[action]
+            child = self.get_child_by_action(action)
             if self.policy_vals is None:
                 val = float("inf") if child is None else child.ucb1
             else:  # value is according to policy or UCT value
@@ -138,7 +144,7 @@ class MCTSAgent(Agent):
     def _update_root_node(self, child_env: AECEnv) -> None:
         """Update the root node to the child node with the given environment"""
         for action in self.curr_root_node.valid_actions:
-            child = self.curr_root_node.children[action.item()]
+            child = self.curr_root_node.get_child_by_action(action.item())
             if child is not None and child.state_env == child_env:
                 self.curr_root_node = child
                 self.curr_root_node.parent = None
@@ -231,7 +237,7 @@ class MCTSAgent(Agent):
     def _check_for_immediate_winning_action(self) -> Optional[int]:
         best_action = None
         for action in self.curr_root_node.valid_actions:
-            child = self.curr_root_node.children[action.item()]
+            child = self.curr_root_node.get_child_by_action(action.item())
             if child is not None and child.is_terminal:
                 _, reward, _, _, _ = child.state_env.last()
                 reward *= -1
@@ -245,7 +251,7 @@ class MCTSAgent(Agent):
     def _expand(self,  node: Node, action_child_to_expand: int) -> bool:
         """Expand the node by adding its children to the tree, if possible"""
         # don't expand terminal nodes or previously expanded ones
-        if node.is_terminal or node.children[action_child_to_expand] is not None:
+        if node.is_terminal or node.get_child_by_action(action_child_to_expand) is not None:
             return False
 
         curr_env = deepcopy_env(node.state_env)
@@ -271,13 +277,10 @@ class MCTSAgent(Agent):
         while cur_node is not None and not cur_node.is_terminal:
             prev_node = cur_node
             action_to_expand = self._select_next_action(cur_node)
-            if cur_node.children[action_to_expand] is not None:
-                cur_node = cur_node.children[action_to_expand]
-            else:
-                cur_node = None
+            cur_node = cur_node.get_child_by_action(action_to_expand)
         assert action_to_expand is not None, "No action to expand!"
         has_expanded = self._expand(prev_node, action_to_expand)
-        return prev_node.children[action_to_expand] if has_expanded else prev_node
+        return prev_node.get_child_by_action(action_to_expand) if has_expanded else prev_node
 
     def _select_next_action(self, node: Node) -> int:
         """Select the next action based on the current node"""
@@ -349,16 +352,19 @@ if __name__ == "__main__":
     dqn_agent: DQNAgent = load_agent("../../train/logs/DQNAgent/dqn_from_ben/checkpoint_65000.pickle")
     reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/reinforce_d2_from_ben/checkpoint_86000.pickle")
     agents = [
-        # RandomAgent(),
+        RandomAgent(),
         # HierarchicalAgent(),
-        MCTSAgent(policy_function=SoftDQNPolicy(dqn_agent),
-                  n_iter_min=40, n_iter_max=40,
-                  evaluation_function=DQNEvaluation(dqn_agent)),
-        MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
-                  n_iter_min=40, n_iter_max=40,
-                  evaluation_function=DQNEvaluation(dqn_agent)),
-        # AlphaBeta(depth=1, evaluation_function=ProbabilisticEstimator()),
         # AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator()),
+        # AlphaBeta(depth=2, evaluation_function=DQNEvaluation(dqn_agent)),
+        # AlphaBeta(depth=2, evaluation_function=AEWinningPossibilities()),
+        # MCTSAgent(policy_function=SoftDQNPolicy(dqn_agent),
+        #           n_iter_min=40, n_iter_max=40),
+        # MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
+        #           n_iter_min=40, n_iter_max=40,
+        #           evaluation_function=DQNEvaluation(dqn_agent)),
+        MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
+                  n_iter_min=40, n_iter_max=40),
+        # AlphaBeta(depth=1, evaluation_function=ProbabilisticEstimator()),
         # ChooseFirstActionAgent(),
         # MCTSAgent(),
         # MCTSAgent(policy_function=ReinforcePolicy(), n_iter_min=20, n_iter_max=20),
