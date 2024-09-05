@@ -81,7 +81,7 @@ class DQNAgent(TrainableAgent):
             return env.action_space(curr_agent_str).sample(action_mask).item()
 
         q_values = self.get_q_values(obs)
-        if self.soft_play:
+        if getattr(self, 'soft_play', False):
             probs = torch.nn.functional.softmax(q_values, dim=-1)
             sampled_idx = Categorical(probs).sample().item()
             return sampled_idx
