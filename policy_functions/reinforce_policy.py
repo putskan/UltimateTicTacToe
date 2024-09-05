@@ -11,6 +11,7 @@ class ReinforcePolicy(PolicyFunction):
     def __init__(self, policy_agent: ReinforceAgent):
         super().__init__("REINFORCE")
         self.policy_agent = policy_agent
+        self.policy_agent.eval()
 
     def __call__(self, state: Any, action_mask: Any, *args, **kwargs) -> np.ndarray:
         state = torch.tensor(state, dtype=torch.float32, device=self.policy_agent.device).unsqueeze(0)

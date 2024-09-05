@@ -1,20 +1,20 @@
 from __future__ import annotations
+
 import math
 from typing import Any, Dict, Optional, List
 
 import numpy as np
-import torch
 from pettingzoo import AECEnv
 
 from agents.agent import Agent
+from agents.dqn_agent import DQNAgent
 from agents.reinforce_agent import ReinforceAgent
-from agents.search_agents.alpha_beta import AlphaBeta
 from evaluate.example_usage import play
-from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
+from evaluation_functions.dqn_evaluation import DQNEvaluation
 from evaluation_functions.evaluation_function import EvaluationFunction
-from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
-from evaluation_functions.sub_boards_won import SubBoardsWon
 from policy_functions.policy_function import PolicyFunction
+from policy_functions.reinforce_policy import ReinforcePolicy
+from policy_functions.soft_dqn_policy import SoftDQNPolicy
 from utils.constants import INF
 from utils.utils import get_action_mask, deepcopy_env, load_agent
 
@@ -37,11 +37,12 @@ class Node:
         self.parent = parent
         self.c = c
         self.policy_vals = policy_vals
+        self.depth = self.parent.depth + 1 if self.parent is not None else 1
 
         obs, _, termination, truncation, info = state_env.last()
         action_mask = get_action_mask(obs, info)
         self.is_terminal = termination or truncation
-        self.action_mask = action_mask
+        self.valid_actions = np.argwhere(action_mask).flatten()
         self.children: List[Optional[Node]] = [None] * len(action_mask)
 
     def add_child(self, child: Node) -> None:
@@ -71,14 +72,11 @@ class Node:
         (or if all of them are terminal nodes)"""
         max_val = float("-inf")
         max_action = None
-        for action, child in enumerate(self.children):
+        for action in self.valid_actions:
+            action = action.item()
+            child = self.children[action]
             if self.policy_vals is None:
-                if self.action_mask[action] == 0:
-                    val = float("-inf")  # illegal moves are the worst
-                elif child is None:
-                    val = float("inf")  # unexplored nodes are with high priority
-                else:
-                    val = child.ucb1
+                val = float("inf") if child is None else child.ucb1
             else:  # value is according to policy or UCT value
                 prob = self.policy_vals[action]
                 val = prob if child is None else child.uct(prob)
@@ -100,22 +98,29 @@ class MCTSAgent(Agent):
     def __init__(self, shuffle_move_order: bool = True,
                  n_iter_min=80, n_iter_max=400, action_n_thresh=12,
                  is_stochastic: bool = False, c: float = 2,
+                 epsilon: float = 0.5, min_epsilon: float = 0.1,
                  evaluation_function: EvaluationFunction = None,
                  policy_function: PolicyFunction = None,
                  *args, **kwargs):
         """
         :note: If you provide an evaluation function, make sure its return values are centered around 0.
-               Also, it is best if the values are in the range [0, 1] (meaning 0 for loss and 1 for win),
+               Also, it is best if the values are in the range [-1, 1] (meaning -1 for loss and 1 for win),
                and if not, make sure to adjust the c parameter that balances exploration vs. exploitation.
         :param shuffle_move_order: if True, adds the children (/actions) of each node in a random order
         :param n_iter: number of iterations to run the MCTS algorithm
         :param is_stochastic: if True, the agent chooses actions stochastically
         :param c: the exploration parameter
+        :param epsilon: controls the amount of exploration for higher nodes in the tree
+        :param min_epsilon: the minimum value of epsilon for exploration
         :param evaluation_function: (optional) the evaluation function to use in the MCTS algorithm.
                                     If not provided, uses random rollout.
         :param policy_function: (optional) the policy function to use in the MCTS algorithm.
         """
         super().__init__(*args, **kwargs)
+        if 'agent_name' not in kwargs:
+            details = f'Policy {policy_function.__class__.__name__}' if policy_function is not None else ''
+            details += f' Eval {evaluation_function.__class__.__name__}' if evaluation_function is not None else ''
+            self.agent_name = f'{self.__class__.__name__} min {n_iter_min} max {n_iter_max} ({details})'
         self.n_iter_min = n_iter_min
         self.n_iter_max = n_iter_max
         self.action_n_thresh = action_n_thresh
@@ -124,13 +129,16 @@ class MCTSAgent(Agent):
         self.eval_fn = evaluation_function
         self.policy_fn = policy_function
         self.c = c
+        self.epsilon = epsilon
+        self.min_epsilon = min_epsilon
 
         self.env_transposition_table = dict()
         self.curr_root_node = None
 
     def _update_root_node(self, child_env: AECEnv) -> None:
         """Update the root node to the child node with the given environment"""
-        for child in self.curr_root_node.children:
+        for action in self.curr_root_node.valid_actions:
+            child = self.curr_root_node.children[action.item()]
             if child is not None and child.state_env == child_env:
                 self.curr_root_node = child
                 self.curr_root_node.parent = None
@@ -222,7 +230,8 @@ class MCTSAgent(Agent):
 
     def _check_for_immediate_winning_action(self) -> Optional[int]:
         best_action = None
-        for child in self.curr_root_node.children:
+        for action in self.curr_root_node.valid_actions:
+            child = self.curr_root_node.children[action.item()]
             if child is not None and child.is_terminal:
                 _, reward, _, _, _ = child.state_env.last()
                 reward *= -1
@@ -261,7 +270,7 @@ class MCTSAgent(Agent):
         action_to_expand = None
         while cur_node is not None and not cur_node.is_terminal:
             prev_node = cur_node
-            action_to_expand = cur_node.get_max_action()
+            action_to_expand = self._select_next_action(cur_node)
             if cur_node.children[action_to_expand] is not None:
                 cur_node = cur_node.children[action_to_expand]
             else:
@@ -270,15 +279,25 @@ class MCTSAgent(Agent):
         has_expanded = self._expand(prev_node, action_to_expand)
         return prev_node.children[action_to_expand] if has_expanded else prev_node
 
+    def _select_next_action(self, node: Node) -> int:
+        """Select the next action based on the current node"""
+        d_epsilon = self.epsilon / node.depth
+        if d_epsilon > self.min_epsilon and d_epsilon > np.random.rand():
+                return np.random.choice(node.valid_actions)
+        return node.get_max_action()
+
     def _rollout(self, node: Node) -> float:
         """If an evaluation function is provided, call it on the node's env. Otherwise, simulate the game
         from the current node until the end and return the reward"""
         if self.eval_fn is not None:
             observation, reward, termination, truncation, info = node.state_env.last()
+            if termination or truncation:
+                val = node.state_env.rewards[node.state_env.agent_selection]
+                return (val + 1) / 2
             curr_agent_idx = node.state_env.agent_selection
             # TODO: check that observation and agent index are correct
             val = self.eval_fn(node.state_env, observation, curr_agent_idx)
-            return val
+            return (val + 1) / 2
 
         simulation_env = deepcopy_env(node.state_env)
         invert_reward = True  # invert the reward for the opponent
@@ -311,32 +330,42 @@ class MCTSAgent(Agent):
 
 
 if __name__ == "__main__":
+    import datetime
+    from agents.search_agents.alpha_beta import AlphaBeta
+    from evaluate.evaluate_agents import AgentsEvaluator
+    from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
+    from evaluation_functions.constant_evaluation import ConstantEvaluation
+    from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
+    from evaluation_functions.sub_boards_won import SubBoardsWon
+    from utils.logger import get_logger
     from environments import ultimate_ttt
     from agents.choose_first_action_agent import ChooseFirstActionAgent
     from agents.random_agent import RandomAgent
     from agents.hierarchical_agent import HierarchicalAgent
-    class ReinforcePolicy(PolicyFunction):
-        def __init__(self):
-            super().__init__("REINFORCE")
-            self.reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
-            # self.reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/2024-09-04_13-50-41/checkpoint_1500.pickle")
-
-        def __call__(self, state: Any, action_mask: Any, *args, **kwargs) -> np.ndarray:
-            state = torch.tensor(state, dtype=torch.float32, device=self.reinforce_agent.device).unsqueeze(0)
-            action_mask = torch.BoolTensor(action_mask, device=self.reinforce_agent.device).unsqueeze(0)
-            return self.reinforce_agent.apply_policy_net(state, action_mask).flatten().detach()
 
     render_mode = "human"
     render_mode = None
-    env = ultimate_ttt.env(render_mode=render_mode, depth=1)
+    env = ultimate_ttt.env(render_mode=render_mode, depth=2)
+    dqn_agent: DQNAgent = load_agent("../../train/logs/DQNAgent/dqn_from_ben/checkpoint_65000.pickle")
+    reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/reinforce_d2_from_ben/checkpoint_86000.pickle")
     agents = [
         # RandomAgent(),
-        MCTSAgent(policy_function=ReinforcePolicy(), n_iter_min=15, is_stochastic=True),
-        ChooseFirstActionAgent(),
         # HierarchicalAgent(),
+        MCTSAgent(policy_function=SoftDQNPolicy(dqn_agent),
+                  n_iter_min=40, n_iter_max=40,
+                  evaluation_function=DQNEvaluation(dqn_agent)),
+        MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
+                  n_iter_min=40, n_iter_max=40,
+                  evaluation_function=DQNEvaluation(dqn_agent)),
+        # AlphaBeta(depth=1, evaluation_function=ProbabilisticEstimator()),
+        # AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator()),
+        # ChooseFirstActionAgent(),
         # MCTSAgent(),
         # MCTSAgent(policy_function=ReinforcePolicy(), n_iter_min=20, n_iter_max=20),
-        # AlphaBeta(depth=1, evaluation_function=ProbabilisticEstimator()),
         # MCTSAgent(n_iter_min=20, n_iter_max=160),
     ]
+    # logger_file_name = f"../../evaluate/logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    # logger = get_logger("evaluate_agents", logger_file_name, log_to_console=True)
+    # agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=10)
+    # agents_evaluator.evaluate_agents()
     play(env, agents, n_games=20)
