@@ -146,3 +146,60 @@ class DuelingDQNConv(nn.Module):
         x = value_head_res + advantage_head_res - torch.mean(advantage_head_res, dim=-1, keepdim=True)
         x = x.reshape(-1, self.out_shape)
         return x
+
+
+class PEDQNConvNet(nn.Module):
+    def __init__(self, _: Union[Tuple[int, ...], int], out_shape: Sequence,
+                 device: torch.device = None,
+                 activation: Type[nn.Module] = nn.ReLU, hidden_dim: int = 16) -> None:
+        super().__init__()
+        self.flatten = nn.Flatten()
+        self.out_shape = out_shape
+        self.backbone = nn.Sequential(
+            nn.Conv2d(29, hidden_dim, device=device, kernel_size=1),
+            activation(),
+            nn.Conv2d(hidden_dim, hidden_dim, device=device, kernel_size=1),
+            activation(),
+            nn.Conv2d(hidden_dim, hidden_dim, device=device, kernel_size=1),
+            activation(),
+            nn.Flatten(),
+            nn.Linear(9 * hidden_dim, 9 * hidden_dim),
+            activation(),
+            nn.Linear(9 * hidden_dim, 9 * hidden_dim),
+            activation(),
+            nn.Linear(9 * hidden_dim, 9 * hidden_dim),
+            activation(),
+            nn.Linear(9 * hidden_dim, np.prod(out_shape).item()),
+        )
+        # self.value_head = nn.Sequential(
+        #     nn.Linear(9 * hidden_dim, 64, device=device),
+        #     activation(),
+        #     nn.Linear(64, 1, device=device),
+        # )
+        # self.advantage_head = nn.Sequential(
+        #     nn.Linear(9 * hidden_dim, 64, device=device),
+        #     activation(),
+        #     nn.Linear(64, np.prod(out_shape).item(), device=device)
+        # )
+
+    def forward(self, original_board: torch.Tensor, action_mask: torch.Tensor, pe_output: torch.Tensor) -> torch.Tensor:
+        batch_size = len(original_board)
+        assert original_board.shape == (batch_size, 3, 3, 3, 3, 2)
+        assert action_mask.shape == (batch_size, 81)
+        assert pe_output.shape == (batch_size, 3, 3, 2)
+        action_mask = action_mask.reshape(batch_size, 3, 3, 3, 3, 1)  # TODO: make sure it indeed works that way
+
+        x = torch.concatenate([original_board, action_mask], dim=-1)
+        assert x.shape == (batch_size, 3, 3, 3, 3, 3)
+
+        x = x.reshape(-1, 3, 3, 27)
+        x = torch.concatenate([x, pe_output], dim=-1)
+        x = x.permute(0, 3, 1, 2)  # (C x W x H)
+        assert x.shape == (batch_size, 29, 3, 3)
+
+        x = self.backbone(x)
+        # value_head_res = self.value_head(x)
+        # advantage_head_res = self.advantage_head(x)
+        # x = value_head_res + advantage_head_res - torch.mean(advantage_head_res, dim=-1, keepdim=True)
+        # x = x.reshape(-1, self.out_shape)
+        return x

@@ -20,6 +20,7 @@ class DQNEvaluation(EvaluationFunction):
         self.soft_dqn = soft_dqn
 
     def __call__(self, env: AECEnv, obs: Any, curr_agent_idx: int, *args, **kwargs) -> float:
+        obs = self.dqn_agent._preprocess_using_pe(obs)
         q_values = self.dqn_agent.get_q_values(obs)
         if self.soft_dqn:
             probs = torch.nn.functional.softmax(q_values, dim=-1)

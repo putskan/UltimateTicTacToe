@@ -5,7 +5,7 @@ from pettingzoo.classic import tictactoe_v3
 from agents.dqn_agent import DQNAgent
 from agents.probabilistic_estimator_dqn_agent import ProbabilisticEstimatorDQNAgent
 from environments import ultimate_ttt
-from models.dqn import PrevDQN
+from models.dqn import PrevDQN, PEDQNConvNet
 from train import train
 from utils.utils import load_agent
 
@@ -19,7 +19,8 @@ def depth_2_training():
     action_size = env.action_space(env.agents[0]).n
     discount_factor = 0.6
     agent = ProbabilisticEstimatorDQNAgent(state_size=(3, 3, 2), action_size=action_size, learning_rate=3e-4,
-                                           discount_factor=discount_factor, use_lr_scheduler=True, model_cls=PrevDQN)
+                                           discount_factor=discount_factor, use_lr_scheduler=True,
+                                           model_cls=PEDQNConvNet)
 
     # previous_checkpoint: DQNAgent = load_agent('/Users/benlahav/Desktop/uni/UltimateTicTacToe/train/logs/DQNAgent/2024-08-31_12-54-55/checkpoint_65000.pickle')
     # agent.copy_networks(previous_checkpoint)

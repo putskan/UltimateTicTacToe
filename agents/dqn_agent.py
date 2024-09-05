@@ -68,9 +68,11 @@ class DQNAgent(TrainableAgent):
 
     def get_q_values(self, obs: Dict[str, np.ndarray]) -> torch.Tensor:
         state = torch.FloatTensor(obs['observation']).unsqueeze(0).to(self.device)
+        pe_state = torch.FloatTensor(obs['pe_observation']).unsqueeze(0).to(self.device)
         action_mask = obs['action_mask']
+        action_mask_tensor = torch.FloatTensor(action_mask, device=self.device).unsqueeze(0)
         with torch.no_grad():
-            action = self.policy_net(state)
+            action = self.policy_net(state, action_mask_tensor, pe_state)
         action[:, (~action_mask.astype(bool)).tolist()] = -float('inf')
         return action
 

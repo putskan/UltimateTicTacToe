@@ -41,7 +41,7 @@ class ProbabilisticEstimatorDQNAgent(DQNAgent):
             assert new_boards.shape == (batch_size, 3, 3, 2)
         else:
             new_boards = self.pe._get_prob_matrix(board)
-        return {**obs, 'observation': new_boards}
+        return {**obs, 'pe_observation': new_boards}
 
     def play(self, env: AECEnv, obs: Any, curr_agent_idx: int,
              curr_agent_str: str, action_mask: Optional[np.ndarray],
@@ -59,23 +59,28 @@ class ProbabilisticEstimatorDQNAgent(DQNAgent):
         (states, actions, rewards, next_states, dones, action_masks,
          curr_player_idxs, next_action_mask, _, _) = zip(*batch)
 
-        states = self._preprocess_using_pe({'observation': np.array(states)})['observation']
-        next_states = self._preprocess_using_pe({'observation': np.array(next_states)})['observation']
+        preprocessed_states = self._preprocess_using_pe({'observation': np.array(states)})
+        preprocessed_next_states = self._preprocess_using_pe({'observation': np.array(next_states)})
         # TODO: something prettier
 
-        states = torch.FloatTensor(states, device=self.device)
-        next_states = torch.FloatTensor(next_states, device=self.device)
+        states = torch.FloatTensor(preprocessed_states['observation'], device=self.device)
+        pe_states = torch.FloatTensor(preprocessed_states['pe_observation'], device=self.device)
+        next_states = torch.FloatTensor(preprocessed_next_states['observation'], device=self.device)
+        pe_next_states = torch.FloatTensor(preprocessed_next_states['pe_observation'], device=self.device)
         actions = torch.LongTensor(np.array(actions), device=self.device).unsqueeze(1)
         rewards = torch.FloatTensor(np.array(rewards), device=self.device)
         dones = torch.FloatTensor(np.array(dones), device=self.device)
+        action_mask_tensor = torch.FloatTensor(np.array(action_masks), device=self.device)
 
         # compute Q-values for current states
-        q_values = self.policy_net(states).gather(1, actions).squeeze(1)
+        q_values = self.policy_net(states, action_mask_tensor, pe_states).gather(1, actions).squeeze(1)
 
         # compute Q-values for next states using the target network
         with torch.no_grad():
-            next_action_mask_bool = np.array(next_action_mask).astype(bool)
-            all_next_q_values = np.ma.masked_array(self.target_net(next_states), ~next_action_mask_bool)
+            next_action_mask = np.array(next_action_mask)
+            next_action_mask_bool = next_action_mask.astype(bool)
+            next_action_mask_tensor = torch.FloatTensor(next_action_mask, device=self.device)
+            all_next_q_values = np.ma.masked_array(self.target_net(next_states, next_action_mask_tensor, pe_next_states), ~next_action_mask_bool)
             next_q_values = torch.tensor(all_next_q_values.max(1))
             target_q_values = rewards + (self.discount_factor * next_q_values * (1 - dones))
 
