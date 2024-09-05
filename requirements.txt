@@ -31,3 +31,4 @@ torch==2.4.0
 tqdm==4.66.4
 typing_extensions==4.12.2
 tzdata==2024.1
+dill

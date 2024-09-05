@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from typing import Any, Union, Literal, Tuple, Callable
 
@@ -81,24 +82,24 @@ class ProbabilisticEstimator(EvaluationFunction):
         assert 0 <= prob_to_lose <= 1
         return prob_to_win, prob_to_lose
 
+    def _cachable_outer_f(self, f: Callable, **kwargs):
+        cache_key = []
+        for arg in kwargs.values():
+            if isinstance(arg, np.ndarray):
+                cache_key.append(hashlib.sha1(arg).hexdigest())
+            else:
+                cache_key.append(arg)
+        cache_key = tuple(cache_key)
+
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+
+        res = f(**kwargs)
+        self.cache[cache_key] = res
+        return res
+
     def _make_cachable(self, f: Callable):
-        def outer_f(**kwargs):
-            cache_key = []
-            for arg in kwargs.values():
-                if isinstance(arg, np.ndarray):
-                    cache_key.append(hashlib.sha1(arg).hexdigest())
-                else:
-                    cache_key.append(arg)
-            cache_key = tuple(cache_key)
-
-            if cache_key in self.cache:
-                return self.cache[cache_key]
-
-            res = f(**kwargs)
-            self.cache[cache_key] = res
-            return res
-
-        return outer_f
+        return partial(self._cachable_outer_f, f=f)
 
     def _prob_to_win_sub_board(self, board: np.ndarray, depth: int) -> Tuple[float, float]:
         """
@@ -154,5 +155,3 @@ class ProbabilisticEstimator(EvaluationFunction):
             return prob_to_win, prob_to_lose
 
         raise ValueError('Unknown reduction method')
-
-
