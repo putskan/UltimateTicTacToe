@@ -177,7 +177,7 @@ class AgentsEvaluator:
         if self.log_folder and save_plot:
             dst_path = self.log_folder / f'{title}.png'
             plt.savefig(dst_path)
-            logger.info(f'Saved {dst_path} successfully')
+            self.logger.info(f'Saved {dst_path} successfully')
 
     def plot_results(self, save_plot: bool = True) -> None:
         """
