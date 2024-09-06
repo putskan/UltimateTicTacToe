@@ -1,4 +1,3 @@
-import hashlib
 from typing import Any
 
 import numpy as np
@@ -91,7 +90,6 @@ class Board:
         :param player_2_piece: piece for player 2, as in the board
         :return: 3x3 board
         """
-        assert np.all(np.array(board.shape) == 3) or board.shape == (3, 3, 1)
         np_all_axis = tuple(range(2, board.ndim))
         player_1_win_mask = np.all(board == player_1_piece, axis=np_all_axis)
         player_2_win_mask = np.all(board == player_2_piece, axis=np_all_axis)

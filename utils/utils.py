@@ -78,17 +78,14 @@ def check_for_winner_classic(three_on_three_board: np.ndarray,
     :return: the winner number, -1 otherwise
     """
     assert three_on_three_board.shape == (3, 3)
-    flattened_board = three_on_three_board.flatten().tolist()
-    winner = -1
-    for combination in winning_combinations:
-        states = []
-        for index in combination:
-            states.append(flattened_board[index])
-        if all(x == Piece.X.value for x in states):
-            winner = Piece.X.value
-        if all(x == Piece.O.value for x in states):
-            winner = Piece.O.value
-    return winner
+    combos = three_on_three_board.flatten()[winning_combinations]
+    is_x_winner = np.any(np.all(combos == Piece.X.value, axis=-1))
+    if is_x_winner:
+        return Piece.X.value
+    is_o_winner = np.any(np.all(combos == Piece.O.value, axis=-1))
+    if is_o_winner:
+        return Piece.O.value
+    return -1
 
 
 def deepcopy_env(env: AECEnv) -> AECEnv:
