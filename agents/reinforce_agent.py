@@ -21,7 +21,8 @@ class ReinforceAgent(TrainableAgent):
     A REINFORCE agent that uses a policy network to select actions
     """
     def __init__(self, state_size, action_size, hidden_size=64, learning_rate=1e-4, discount_factor=0.99, epsilon=0.7,
-                 epsilon_decay=0.99, epsilon_min=0.01, batch_size=64, use_lr_scheduler: bool = False, *args, **kwargs):
+                 epsilon_decay=0.99, epsilon_min=0.01, net_class=DQN,
+                 batch_size=64, use_lr_scheduler: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.state_size = state_size
         self.action_size = action_size
@@ -37,7 +38,7 @@ class ReinforceAgent(TrainableAgent):
         self.use_eps_greedy = False
 
         # self.policy_net = ReinforcePolicy(self.state_size, self.action_size, self.hidden_size).to(self.device)
-        self.policy_net = PrevDQN(self.state_size, self.action_size).to(self.device)
+        self.policy_net = net_class(self.state_size, self.action_size).to(self.device)
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.learning_rate, amsgrad=True)
         self.lr_scheduler = ExponentialLR(self.optimizer, gamma=0.99999)
 

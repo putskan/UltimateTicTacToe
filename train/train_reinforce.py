@@ -3,6 +3,7 @@ import numpy as np
 
 from agents.reinforce_agent import ReinforceAgent
 from environments import ultimate_ttt
+from models.dqn import DQN, PrevDQN
 from train import train
 
 
@@ -19,7 +20,7 @@ def train_depth_1():
     discount_factor = 0.6
     learning_rate = 3e-4
     agent = ReinforceAgent(state_size=state_size, action_size=action_size,
-                           hidden_size=hidden_size, batch_size=batch_size,
+                           hidden_size=hidden_size, batch_size=batch_size, net_class=PrevDQN,
                            learning_rate=learning_rate, discount_factor=discount_factor,
                            use_lr_scheduler=True, epsilon_min=0.1, epsilon_decay=0.9999)
     # noinspection PyCallingNonCallable
@@ -44,7 +45,7 @@ def train_depth_2():
     discount_factor = 0.9
     learning_rate = 3e-3
     agent = ReinforceAgent(state_size=state_size, action_size=action_size,
-                           hidden_size=hidden_size, batch_size=batch_size,
+                           hidden_size=hidden_size, batch_size=batch_size, net_class=DQN,
                            learning_rate=learning_rate, discount_factor=discount_factor,
                            use_lr_scheduler=True, epsilon_min=0.1, epsilon_decay=0.9999)
     # noinspection PyCallingNonCallable
