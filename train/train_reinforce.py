@@ -41,8 +41,8 @@ def train_depth_2():
     state_size = np.prod(state_shape)
     hidden_size = 64
     batch_size = 128
-    discount_factor = 0.6
-    learning_rate = 3e-4
+    discount_factor = 0.9
+    learning_rate = 3e-3
     agent = ReinforceAgent(state_size=state_size, action_size=action_size,
                            hidden_size=hidden_size, batch_size=batch_size,
                            learning_rate=learning_rate, discount_factor=discount_factor,
