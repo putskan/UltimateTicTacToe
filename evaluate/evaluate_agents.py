@@ -158,6 +158,7 @@ class AgentsEvaluator:
         self.log_final_results("Average Time per Move (in seconds)", sorted_times)
         self.plot_results()
         self.plot_average_times(player_avg_time)
+        plt.show()
 
     @property
     def log_folder(self):
@@ -167,6 +168,16 @@ class AgentsEvaluator:
         for handler in self.logger.handlers:
             if hasattr(handler, 'baseFilename'):
                 return Path(handler.baseFilename).parent
+
+    def _set_plot_metadata_and_save(self, title: str, save_plot: bool, suptitle: str = None):
+        plt.title(title)
+        if suptitle is not None:
+            plt.suptitle(suptitle, fontsize=14)
+
+        if self.log_folder and save_plot:
+            dst_path = self.log_folder / f'{title}.png'
+            plt.savefig(dst_path)
+            logger.info(f'Saved {dst_path} successfully')
 
     def plot_results(self, save_plot: bool = True) -> None:
         """
@@ -182,44 +193,39 @@ class AgentsEvaluator:
         draws_df = pd.DataFrame(draws, index=self.agents, columns=self.agents)
 
         # Visualizing the matrices using heatmaps
-        plt.figure(figsize=(18, 12))
 
-        plt.subplot(2, 3, 1)
+        plt.figure(1, figsize=(10, 6))
         sns.heatmap(wins_df, annot=True, fmt="d", cmap="Blues", cbar=False)
-        plt.title('Wins')
+        self._set_plot_metadata_and_save('Wins', save_plot=save_plot)
 
-        plt.subplot(2, 3, 2)
+        plt.figure(2, figsize=(10, 6))
         sns.heatmap(losses_df, annot=True, fmt="d", cmap="Reds", cbar=False)
-        plt.title('Losses')
+        self._set_plot_metadata_and_save('Losses', save_plot=save_plot)
 
-        plt.subplot(2, 3, 3)
+        plt.figure(3, figsize=(10, 6))
         sns.heatmap(draws_df, annot=True, fmt="d", cmap="Greens", cbar=False)
-        plt.title('Draws')
+        self._set_plot_metadata_and_save('Draws', save_plot=save_plot)
 
         # bar plot for total scores
+        plt.figure(4, figsize=(10, 6))
         total_scores = wins_df.sum(axis=1) + draws_df.sum(axis=1) * 0.5  # Wins + 0.5 * Draws
-        plt.subplot(2, 3, 4)
         colors = sns.color_palette("rainbow", len(self.wins))
 
         total_scores.sort_values().plot(kind='barh', color=colors)
-        plt.title('Total Scores by Agent')
         plt.xlabel('Score')
         plt.ylabel('Agent')
+        self._set_plot_metadata_and_save('Total Scores by Agent', save_plot=save_plot)
 
         # Elo rating
+        plt.figure(5, figsize=(10, 6))
         elo_ratings = pd.Series(self.players_elo_rating).sort_values()
-        plt.subplot(2, 3, 5)
         elo_ratings.plot(kind='barh', color=colors)
-        plt.title('Elo Ratings by Agent')
         plt.xlabel('Elo Rating')
         plt.ylabel('Agent')
-
-        plt.suptitle(f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)', fontsize=14)
-        plt.tight_layout()
-
-        if self.log_folder and save_plot:
-            plt.savefig(self.log_folder / 'results.png')
+        suptitle = f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)'
+        self._set_plot_metadata_and_save('Elo Ratings by Agent', save_plot=save_plot, suptitle=suptitle)
         plt.show()
+
 
     def plot_average_times(self, agents_times: Dict[str, float], save_plot: bool = True) -> None:
         """
@@ -235,7 +241,6 @@ class AgentsEvaluator:
         bars = plt.bar(agents_times.index, agents_times.values, color=palette)
         plt.xlabel('Agent')
         plt.ylabel('Average Time (seconds)')
-        plt.title('Average Time Per Agent')
 
         # Add the value labels on top of each bar
         for bar, value in zip(bars, agents_times.values):
@@ -249,10 +254,7 @@ class AgentsEvaluator:
 
         plt.xlabel('Agent')
         plt.ylabel('Average Time (seconds)')
-        plt.title('Average Time Per Agent')
-        if self.log_folder and save_plot:
-            plt.savefig(self.log_folder / 'avg_time_results.png')
-        plt.show()
+        self._set_plot_metadata_and_save('Average Time Per Agent', save_plot=save_plot)
 
 
 if __name__ == '__main__':
@@ -277,8 +279,8 @@ if __name__ == '__main__':
 
     env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
     # reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
-    reinforce_agent: ReinforceAgent = load_agent(
-        "../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
+    # reinforce_agent: ReinforceAgent = load_agent(
+    #     "../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
     # dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
     # agents = [
     #     HierarchicalAgent(),
@@ -287,8 +289,8 @@ if __name__ == '__main__':
     #     # AlphaBeta(2, AEWinningPossibilities()),
     #     AlphaBeta(2, ProbabilisticEstimator()),
     # ]
-    mcts_agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent), n_iter_min=20)
-    agents = [HierarchicalAgent(), RandomAgent(), ChooseFirstActionAgent(), mcts_agent, AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator())]
+    # mcts_agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent), n_iter_min=20)
+    agents = [HierarchicalAgent(), RandomAgent()]
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=args.log_to_console)
