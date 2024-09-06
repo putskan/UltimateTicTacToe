@@ -21,7 +21,7 @@ from environments import ultimate_ttt
 from utils.utils import get_action_mask, load_agent
 from utils.logger import get_logger
 from agents.agent import Agent
-from agents.TimedAgentWrapper import TimedAgentWrapper
+from agents.timed_agent_wrapper import TimedAgentWrapper
 
 matplotlib.use("TkAgg")
 
