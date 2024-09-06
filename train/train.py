@@ -3,6 +3,7 @@ import datetime
 import logging
 import os
 import random
+import shutil
 from collections import deque
 from pathlib import Path
 from typing import List, Dict, Union
@@ -44,8 +45,6 @@ def evaluate(env: AECEnv, agent: TrainableAgent, n_games: int = 100, seed: int =
     """
     agent.eval()
     with torch.no_grad():
-        env.reset(seed=seed)
-        agent.eval()
         total_reward = 0
         for _ in range(n_games):
             env.reset()
@@ -118,7 +117,7 @@ def plot_loss(losses: List[float], path_to_save: Path = None, abs_loss: bool = T
     plt.figure(figsize=(10, 6))
     plt.plot(losses)
     plt.xlabel('Episode')
-    abs_str = {"Absolute" if abs_loss else ""}
+    abs_str = "Absolute " if abs_loss else ""
     plt.ylabel(f'{abs_str}Loss')
     plt.ylim(bottom=0)
     plt.title(f'{abs_str}Loss per Episode')
@@ -172,6 +171,7 @@ def train(env: AECEnv, agent: TrainableAgent,
         os.makedirs(folder_to_save, exist_ok=True)
 
     if logger is None:
+        # TODO: add logging folder to gitignore
         logger = get_logger(__name__, log_dir_name=folder_to_save, log_to_console=folder_to_save is None)
 
     agent.train()
@@ -244,9 +244,6 @@ def train(env: AECEnv, agent: TrainableAgent,
             env.step(action)
             curr_player_idx = (curr_player_idx + 1) % len(players)
 
-        if curr_game % train_every == 0:
-            agent.train_update(replay_buffer)
-
         if curr_game > 0 and curr_game % add_agent_to_pool_every == 0:
             previous_agents.append(copy.deepcopy(agent))
 
@@ -271,7 +268,6 @@ def train(env: AECEnv, agent: TrainableAgent,
 
 
 if __name__ == '__main__':
-    # TODO: fix state (observation) unpacking in DQN agent
     # # DQN training
     # # env = ultimate_ttt.env(render_mode='human', depth=2, render_fps=10)
     # env = tictactoe_v3.env(render_mode=None)
@@ -294,5 +290,9 @@ if __name__ == '__main__':
     hidden_size = 64
     batch_size = 10
     action_size = env.action_space(env.agents[0]).n
-    agent = DQNAgent(state_size=state_size, action_size=action_size)
-    train(env, agent, n_games=100_000, render_every=20_000, renderable_env=renderable_env)
+    agent = ReinforceAgent(state_size=state_size, action_size=action_size,
+                           agent_name=f"ReinforceAgent_depth1_games1e5_hidden{hidden_size}_batch10",
+                           hidden_size=hidden_size, batch_size=10)
+    folder = Path(__file__).resolve().parent / 'trained_agents'
+    train(env, agent, folder, n_games=100_000, render_every=10_000,
+          renderable_env=renderable_env, save_checkpoint_every=10_000)
