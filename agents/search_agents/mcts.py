@@ -190,8 +190,8 @@ class MCTSAgent(Agent):
             self._update_root_node(env.unwrapped)
 
         n_iter = self.n_iter_min
-        if action_mask is not None:
-            n_legal_actions = np.sum(action_mask)
+        if action_mask is not None and self.n_iter_min != self.n_iter_max:
+            n_legal_actions = np.count_nonzero(action_mask)
             if n_legal_actions > self.action_n_thresh:
                 n_iter = self.n_iter_max
 
@@ -379,6 +379,7 @@ if __name__ == "__main__":
         #           n_iter_min=150, n_iter_max=150, agent_name=f'mcts_pe'),
 
         # RandomAgent(),
+        RandomAgent()
 
     ]
 
@@ -388,12 +389,12 @@ if __name__ == "__main__":
                           n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}', rollout_depth=d)
 
         agents.append(agent)
-        agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
-                          evaluation_function=DQNEvaluation(dqn_agent),
-                          n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}_1', rollout_depth=d,
-                          rollouts_per_expansion=100)
-
-        agents.append(agent)
+        # agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
+        #                   evaluation_function=DQNEvaluation(dqn_agent),
+        #                   n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}_1', rollout_depth=d,
+        #                   rollouts_per_expansion=100)
+        #
+        # agents.append(agent)
 
     #
     # pe = AlphaBeta(depth=2, evaluation_function=ProbabilisticEstimator(depth=3, normalize=False),
@@ -413,5 +414,5 @@ if __name__ == "__main__":
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=True)
     # agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=10)
     # agents_evaluator.evaluate_agents()
-    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=3)
+    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=10)
     agents_evaluator.evaluate_agents()
