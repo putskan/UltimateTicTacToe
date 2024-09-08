@@ -43,6 +43,8 @@ class AgentsEvaluator:
         :param n_rounds: number of rounds to play.
                         for n_rounds=n and len(agents)=k, we play n * (k * (k-1)) games
         """
+        agent_strs = [str(agent) for agent in agents]
+        assert len(agent_strs) == len(np.unique(agent_strs)), 'Agent names must unique'
         for agent in agents:
             if hasattr(agent, 'eval'):
                 agent.eval()

@@ -37,7 +37,7 @@ class Node:
         self.action: int = action
         self.parent = parent
         self.c = c
-        self.policy_vals = policy_vals.tolist()
+        self.policy_vals = policy_vals.tolist() if policy_vals is not None else None
         self.depth = self.parent.depth + 1 if self.parent is not None else 1
 
         obs, _, termination, truncation, info = state_env.last()
@@ -155,7 +155,7 @@ class MCTSAgent(Agent):
         self.env_transposition_table = dict()
         self.curr_root_node = None
 
-        assert self.rollout_depth % 2 == 0  # TODO: yes?
+        assert self.rollout_depth % 2 == 0
 
     def _update_root_node(self, child_env: AECEnv) -> None:
         """Update the root node to the child node with the given environment"""
@@ -371,7 +371,8 @@ if __name__ == "__main__":
     render_mode = None
     env = ultimate_ttt.env(render_mode=render_mode, depth=2)
     dqn_agent: DQNAgent = load_agent("../../agents/trained_agents/dqn/checkpoint_65000.pickle")
-    reinforce_agent: ReinforceAgent = load_agent("../../agents/trained_agents/reinforce/checkpoint_86000.pickle")
+    reinforce_agent_1: ReinforceAgent = load_agent("../../agents/trained_agents/reinforce/checkpoint_86000.pickle")
+    reinforce_agent_2: ReinforceAgent = load_agent("../../agents/trained_agents/reinforce/checkpoint_86000.pickle")
     agents = [
 
         # MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
@@ -383,12 +384,68 @@ if __name__ == "__main__":
 
     ]
 
+    reinforce_agent_1.set_temperature(20)
     for d in [16]:
-        agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
-                          evaluation_function=DQNEvaluation(dqn_agent),
-                          n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}', rollout_depth=d)
+        # agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent_1),
+        #                   evaluation_function=DQNEvaluation(dqn_agent),
+        #                   n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}_temp_20', rollout_depth=d,
+        #                   reverse_value=False)
+        #
+        # agents.append(agent)
+        #
+        # agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent_1),
+        #                   evaluation_function=DQNEvaluation(dqn_agent),
+        #                   n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}_temp_20_REVERSE', rollout_depth=d,
+        #                   reverse_value=True,
+        #                   )
+        #
+        # agents.append(agent)
 
+        agent = MCTSAgent(policy_function=None,
+                          evaluation_function=None,#DQNEvaluation(dqn_agent),
+                          n_iter_min=40, n_iter_max=40, agent_name=f'rev_true_ratio_true', rollout_depth=d,
+                          c=math.sqrt(2),
+                          reverse_value=True,
+                          by_ratio=True,
+                          )
         agents.append(agent)
+
+        agent = MCTSAgent(policy_function=None,
+                          evaluation_function=None,#DQNEvaluation(dqn_agent),
+                          n_iter_min=40, n_iter_max=40, agent_name=f'rev_true_ratio_false', rollout_depth=d,
+                          c=math.sqrt(2),
+                          reverse_value=True,
+                          by_ratio=False,
+                          )
+        agents.append(agent)
+
+        agent = MCTSAgent(policy_function=None,
+                          evaluation_function=None,#DQNEvaluation(dqn_agent),
+                          n_iter_min=40, n_iter_max=40, agent_name=f'rev_false_ratio_false', rollout_depth=d,
+                          c=math.sqrt(2),
+                          reverse_value=False,
+                          by_ratio=False,
+                          )
+        agents.append(agent)
+
+        agent = MCTSAgent(policy_function=None,
+                          evaluation_function=None,#DQNEvaluation(dqn_agent),
+                          n_iter_min=40, n_iter_max=40, agent_name=f'rev_false_ratio_true', rollout_depth=d,
+                          c=math.sqrt(2),
+                          reverse_value=False,
+                          by_ratio=True,
+                          )
+        agents.append(agent)
+
+        # agent = MCTSAgent(policy_function=None,
+        #                   evaluation_function=None,#DQNEvaluation(dqn_agent),
+        #                   n_iter_min=40, n_iter_max=40, agent_name=f'rev_false', rollout_depth=d,
+        #                   reverse_value=False,
+        #                   c=math.sqrt(2),
+        #                   )
+        #
+        # agents.append(agent)
+
         # agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent),
         #                   evaluation_function=DQNEvaluation(dqn_agent),
         #                   n_iter_min=40, n_iter_max=40, agent_name=f'mcts_dqn_{d}_1', rollout_depth=d,
@@ -414,5 +471,5 @@ if __name__ == "__main__":
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=True)
     # agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=10)
     # agents_evaluator.evaluate_agents()
-    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=10)
+    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=3)
     agents_evaluator.evaluate_agents()

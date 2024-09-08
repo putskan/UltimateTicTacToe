@@ -23,7 +23,7 @@ class ReinforceAgent(TrainableAgent):
     """
     def __init__(self, state_size, action_size, hidden_size=64, learning_rate=1e-4, discount_factor=0.99, epsilon=0.7,
                  epsilon_decay=0.99, epsilon_min=0.01, net_class=DQN,
-                 batch_size=64, use_lr_scheduler: bool = False, *args, **kwargs):
+                 batch_size=64, use_lr_scheduler: bool = False, temperature: float = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.state_size = state_size
         self.action_size = action_size
@@ -37,6 +37,7 @@ class ReinforceAgent(TrainableAgent):
         self.use_lr_scheduler = use_lr_scheduler
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.use_eps_greedy = False
+        self.temperature = temperature
 
         # self.policy_net = ReinforcePolicy(self.state_size, self.action_size, self.hidden_size).to(self.device)
         self.policy_net = net_class(self.state_size, self.action_size).to(self.device)
@@ -75,8 +76,12 @@ class ReinforceAgent(TrainableAgent):
         """
         policy_vals = self.policy_net(states)
         policy_vals[action_masks.bitwise_not()] = -INF
-        probs = nn.functional.softmax(policy_vals, dim=-1)
+        temperature = getattr(self, 'temperature', 1)
+        probs = nn.functional.softmax(policy_vals / temperature, dim=-1)
         return probs
+
+    def set_temperature(self, temperature: float):
+        self.temperature = temperature
 
     def _select_actions(self, states: Tensor, action_masks: Tensor) -> Tensor:
         """
