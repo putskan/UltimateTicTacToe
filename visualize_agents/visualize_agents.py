@@ -71,7 +71,7 @@ if __name__ == '__main__':
         NodeType.SEARCH: 'https://i.ibb.co/4F5gYXx/graph.png',
         NodeType.RL: 'https://i.ibb.co/QJQ5PmZ/rl.png',
         NodeType.HYBRID: 'https://i.ibb.co/yhSy4Dh/hybrid.png',
-        NodeType.EVALUATION_FUNCTION: 'https://i.ibb.co/47ZWP9v/evaluation-function.png',
+        NodeType.EVALUATION_FUNCTION: 'https://i.ibb.co/kyJ10Tr/calc.png',
         NodeType.ROOT: '',
     }
     nodes = [
@@ -80,8 +80,11 @@ if __name__ == '__main__':
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'AE Winning Possibilities', 'is_agent': False},
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Probabilistic Estimator', 'is_agent': False},
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Sub Boards Won', 'is_agent': False},
-        # {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Win-Loss Evaluation', 'is_agent': False},
+        {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Win-Loss Evaluation', 'is_agent': False},
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Random Agent', 'is_agent': True},
+
+        {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Choose First Action', 'is_agent': True},
+        {'type': NodeType.EVALUATION_FUNCTION, 'name': 'HierarchicalAgent', 'is_agent': True},
 
         {'type': NodeType.SEARCH, 'name': 'MCTS', 'is_agent': True},
         {'type': NodeType.SEARCH, 'name': 'AlphaBeta', 'is_agent': False},
@@ -89,38 +92,31 @@ if __name__ == '__main__':
         {'type': NodeType.RL, 'name': 'DQN', 'is_agent': True},
         {'type': NodeType.RL, 'name': 'Reinforce', 'is_agent': True},
 
-        {'type': NodeType.HYBRID, 'name': 'AB AE WP', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'AB PE', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'AB DQN', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'AB SBW', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'MCTS AE WP', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'MCTS PE', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'MCTS DQN', 'is_agent': True},
-        {'type': NodeType.HYBRID, 'name': 'MCTS SBW', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'AB-AE', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'AB-PE', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'AB-SBW', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'AB-WL', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'AB-DQN', 'is_agent': True},
+
+        {'type': NodeType.HYBRID, 'name': 'MCTS-SoftDQN-DQN', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'MCTS-Reinforce-DQN', 'is_agent': True},
+        {'type': NodeType.HYBRID, 'name': 'MCTS-PE', 'is_agent': True},
     ]
 
-    edges = [
-        {'parents': ['Agent Tree'], 'child': 'AE Winning Possibilities'},
-        {'parents': ['Agent Tree'], 'child': 'Probabilistic Estimator'},
-        {'parents': ['Agent Tree'], 'child': 'Sub Boards Won'},
-        # {'parents': ['Agent Tree'], 'child': 'Win-Loss Evaluation'},
-        {'parents': ['Agent Tree'], 'child': 'Random Agent'},
-        {'parents': ['Agent Tree'], 'child': 'MCTS'},
-        {'parents': ['Agent Tree'], 'child': 'AlphaBeta'},
-        {'parents': ['Agent Tree'], 'child': 'DQN'},
-        {'parents': ['Agent Tree'], 'child': 'Reinforce'},
+    edges = []
+    for node in nodes:
+        if node['type'] not in (NodeType.HYBRID, NodeType.ROOT):
+            edges.append({'parents': ['Agent Tree'], 'child': node['name']})
 
-        {'parents': ['AlphaBeta', 'AE Winning Possibilities'], 'child': 'AB AE WP'},
-        {'parents': ['AlphaBeta', 'Probabilistic Estimator'], 'child': 'AB PE'},
-        {'parents': ['AlphaBeta', 'DQN'], 'child': 'AB DQN'},
-        {'parents': ['AlphaBeta', 'Sub Boards Won'], 'child': 'AB SBW'},
-        {'parents': ['MCTS', 'AE Winning Possibilities'], 'child': 'MCTS AE WP'},
-        {'parents': ['MCTS', 'Probabilistic Estimator'], 'child': 'MCTS PE'},
-        {'parents': ['MCTS', 'DQN'], 'child': 'MCTS DQN'},
-        {'parents': ['MCTS', 'Sub Boards Won'], 'child': 'MCTS SBW'},
+    edges += [
+        {'parents': ['AlphaBeta', 'AE Winning Possibilities'], 'child': 'AB-AE'},
+        {'parents': ['AlphaBeta', 'Probabilistic Estimator'], 'child': 'AB-PE'},
+        {'parents': ['AlphaBeta', 'Sub Boards Won'], 'child': 'AB-SBW'},
+        {'parents': ['AlphaBeta', 'Win-Loss Evaluation'], 'child': 'AB-WL'},
+        {'parents': ['AlphaBeta', 'DQN'], 'child': 'AB-DQN'},
+        {'parents': ['AlphaBeta', 'DQN'], 'child': 'MCTS-SoftDQN-DQN'},
+        {'parents': ['AlphaBeta', 'Reinforce', 'DQN'], 'child': 'MCTS-Reinforce-DQN'},
+        {'parents': ['AlphaBeta', 'Probabilistic Estimator'], 'child': 'MCTS-PE'},
     ]
-
-    # TODO: assert edges are in nodes and vice versa
-
     visualize_agents(nodes, images, edges)
 

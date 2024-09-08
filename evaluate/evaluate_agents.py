@@ -154,7 +154,7 @@ class AgentsEvaluator:
 
         # log results
         self.logger.info(f'n_rounds={self.n_rounds}, n_agents={len(self.agents)}, '
-                    f'total_games={self.n_rounds * len(self.agents) * (len(self.agents) - 1)}')
+                         f'total_games={self.n_rounds * len(self.agents) * (len(self.agents) - 1)}')
         self.log_final_results("Winning Percentage", sorted_player_win_percentage, use_percentage=True)
         self.log_final_results("Elo Rating", sorted_elo_ratings)
         self.log_final_results("Average Time per Move (in seconds)", sorted_times)
@@ -196,20 +196,20 @@ class AgentsEvaluator:
 
         # Visualizing the matrices using heatmaps
 
-        plt.figure(1, figsize=(10, 6))
+        plt.figure(1, figsize=(13, 6))
         sns.heatmap(wins_df, annot=True, fmt="d", cmap="Blues", cbar=False)
         self._set_plot_metadata_and_save('Wins', save_plot=save_plot)
 
-        plt.figure(2, figsize=(10, 6))
+        plt.figure(2, figsize=(13, 6))
         sns.heatmap(losses_df, annot=True, fmt="d", cmap="Reds", cbar=False)
         self._set_plot_metadata_and_save('Losses', save_plot=save_plot)
 
-        plt.figure(3, figsize=(10, 6))
+        plt.figure(3, figsize=(13, 6))
         sns.heatmap(draws_df, annot=True, fmt="d", cmap="Greens", cbar=False)
         self._set_plot_metadata_and_save('Draws', save_plot=save_plot)
 
         # bar plot for total scores
-        plt.figure(4, figsize=(10, 6))
+        plt.figure(4, figsize=(16, 6))
         total_scores = wins_df.sum(axis=1) + draws_df.sum(axis=1) * 0.5  # Wins + 0.5 * Draws
         colors = sns.color_palette("rainbow", len(self.wins))
 
@@ -219,15 +219,13 @@ class AgentsEvaluator:
         self._set_plot_metadata_and_save('Total Scores by Agent', save_plot=save_plot)
 
         # Elo rating
-        plt.figure(5, figsize=(10, 6))
+        plt.figure(5, figsize=(16, 6))
         elo_ratings = pd.Series(self.players_elo_rating).sort_values()
         elo_ratings.plot(kind='barh', color=colors)
         plt.xlabel('Elo Rating')
         plt.ylabel('Agent')
         suptitle = f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)'
         self._set_plot_metadata_and_save('Elo Ratings by Agent', save_plot=save_plot, suptitle=suptitle)
-        plt.show()
-
 
     def plot_average_times(self, agents_times: Dict[str, float], save_plot: bool = True) -> None:
         """
@@ -239,10 +237,11 @@ class AgentsEvaluator:
         agents_times = pd.Series(agents_times).sort_values()
         palette = sns.color_palette("crest")
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(6, figsize=(13, 10))
         bars = plt.bar(agents_times.index, agents_times.values, color=palette)
-        plt.xlabel('Agent')
         plt.ylabel('Average Time (seconds)')
+        plt.gca().xaxis.set_ticks(agents_times.index)
+        plt.gca().set_xticklabels(agents_times.index, rotation=30, ha='right', fontsize=6)
 
         # Add the value labels on top of each bar
         for bar, value in zip(bars, agents_times.values):
@@ -254,13 +253,10 @@ class AgentsEvaluator:
                 va='bottom'
             )
 
-        plt.xlabel('Agent')
-        plt.ylabel('Average Time (seconds)')
         self._set_plot_metadata_and_save('Average Time Per Agent', save_plot=save_plot)
 
 
 if __name__ == '__main__':
-    from agents.dqn_agent import DQNAgent
     from agents.search_agents.alpha_beta import AlphaBeta
     from agents.search_agents.mcts import MCTSAgent
     from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities

@@ -1,3 +1,4 @@
+import copy
 from typing import Any
 
 import numpy as np
@@ -10,7 +11,7 @@ from policy_functions.policy_function import PolicyFunction
 class ReinforcePolicy(PolicyFunction):
     def __init__(self, policy_agent: ReinforceAgent):
         super().__init__("REINFORCE")
-        self.policy_agent = policy_agent
+        self.policy_agent = copy.deepcopy(policy_agent)
         self.policy_agent.eval()
 
     def __call__(self, state: Any, action_mask: Any, *args, **kwargs) -> np.ndarray:
