@@ -1,0 +1,55 @@
+2024-09-08 13:29:28,999 - INFO - n_rounds=25, n_agents=12, total_games=3300
+2024-09-08 13:29:28,999 - INFO - ************************************
+2024-09-08 13:29:28,999 - INFO - Final Winning Percentage Results:
+2024-09-08 13:29:28,999 - INFO - AB2-PE-3: 93.45%
+2024-09-08 13:29:28,999 - INFO - AB2-DQN: 83.73%
+2024-09-08 13:29:28,999 - INFO - AB2-AE: 63.55%
+2024-09-08 13:29:28,999 - INFO - AB2-SBW: 62.36%
+2024-09-08 13:29:28,999 - INFO - Mcts-Clean: 60.00%
+2024-09-08 13:29:28,999 - INFO - Mcts-PE-Eval: 48.09%
+2024-09-08 13:29:28,999 - INFO - Mcts-SoftDQN-DQN: 45.55%
+2024-09-08 13:29:28,999 - INFO - AB2-WL: 41.55%
+2024-09-08 13:29:28,999 - INFO - Mcts-Reinforce-DQN: 40.18%
+2024-09-08 13:29:28,999 - INFO - HierarchicalAgent: 33.82%
+2024-09-08 13:29:28,999 - INFO - RandomAgent: 14.45%
+2024-09-08 13:29:28,999 - INFO - ChooseFirstActionAgent: 13.27%
+2024-09-08 13:29:28,999 - INFO - ************************************
+2024-09-08 13:29:28,999 - INFO - 
+2024-09-08 13:29:28,999 - INFO - ************************************
+2024-09-08 13:29:28,999 - INFO - Final Elo Rating Results:
+2024-09-08 13:29:28,999 - INFO - AB2-PE-3: 1708.57
+2024-09-08 13:29:29,000 - INFO - AB2-DQN: 1493.55
+2024-09-08 13:29:29,000 - INFO - AB2-AE: 1407.69
+2024-09-08 13:29:29,000 - INFO - Mcts-Clean: 1270.34
+2024-09-08 13:29:29,000 - INFO - AB2-SBW: 1257.76
+2024-09-08 13:29:29,000 - INFO - Mcts-PE-Eval: 1196.49
+2024-09-08 13:29:29,000 - INFO - Mcts-SoftDQN-DQN: 1182.16
+2024-09-08 13:29:29,000 - INFO - Mcts-Reinforce-DQN: 1115.01
+2024-09-08 13:29:29,000 - INFO - HierarchicalAgent: 1099.85
+2024-09-08 13:29:29,000 - INFO - AB2-WL: 1072.70
+2024-09-08 13:29:29,000 - INFO - ChooseFirstActionAgent: 802.17
+2024-09-08 13:29:29,000 - INFO - RandomAgent: 793.71
+2024-09-08 13:29:29,000 - INFO - ************************************
+2024-09-08 13:29:29,000 - INFO - 
+2024-09-08 13:29:29,000 - INFO - ************************************
+2024-09-08 13:29:29,000 - INFO - Final Average Time per Move (in seconds) Results:
+2024-09-08 13:29:29,000 - INFO - Mcts-Clean: 0.11
+2024-09-08 13:29:29,000 - INFO - Mcts-SoftDQN-DQN: 0.07
+2024-09-08 13:29:29,000 - INFO - Mcts-Reinforce-DQN: 0.07
+2024-09-08 13:29:29,000 - INFO - Mcts-PE-Eval: 0.06
+2024-09-08 13:29:29,000 - INFO - AB2-DQN: 0.03
+2024-09-08 13:29:29,000 - INFO - AB2-PE-3: 0.02
+2024-09-08 13:29:29,000 - INFO - AB2-AE: 0.01
+2024-09-08 13:29:29,000 - INFO - AB2-SBW: 0.01
+2024-09-08 13:29:29,000 - INFO - AB2-WL: 0.01
+2024-09-08 13:29:29,000 - INFO - HierarchicalAgent: 0.00
+2024-09-08 13:29:29,000 - INFO - RandomAgent: 0.00
+2024-09-08 13:29:29,000 - INFO - ChooseFirstActionAgent: 0.00
+2024-09-08 13:29:29,000 - INFO - ************************************
+2024-09-08 13:29:29,000 - INFO - 
+2024-09-08 13:29:29,401 - INFO - Saved /Users/benlahav/Desktop/uni/UltimateTicTacToe/evaluate/logs/evaluate_agents_2024-09-08_12-04-17/Wins.png successfully
+2024-09-08 13:29:29,564 - INFO - Saved /Users/benlahav/Desktop/uni/UltimateTicTacToe/evaluate/logs/evaluate_agents_2024-09-08_12-04-17/Losses.png successfully
+2024-09-08 13:29:29,722 - INFO - Saved /Users/benlahav/Desktop/uni/UltimateTicTacToe/evaluate/logs/evaluate_agents_2024-09-08_12-04-17/Draws.png successfully
+2024-09-08 13:29:29,850 - INFO - Saved /Users/benlahav/Desktop/uni/UltimateTicTacToe/evaluate/logs/evaluate_agents_2024-09-08_12-04-17/Total Scores by Agent.png successfully
+2024-09-08 13:29:29,982 - INFO - Saved /Users/benlahav/Desktop/uni/UltimateTicTacToe/evaluate/logs/evaluate_agents_2024-09-08_12-04-17/Elo Ratings by Agent.png successfully
+2024-09-08 13:29:30,129 - INFO - Saved /Users/benlahav/Desktop/uni/UltimateTicTacToe/evaluate/logs/evaluate_agents_2024-09-08_12-04-17/Average Time Per Agent.png successfully

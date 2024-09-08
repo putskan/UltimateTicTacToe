@@ -2,7 +2,6 @@ from enum import Enum
 from typing import Any, Dict, List
 
 from streamlit_agraph import agraph, Node, Edge, Config
-import streamlit as st
 
 
 class NodeType(Enum):
@@ -82,15 +81,14 @@ if __name__ == '__main__':
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Sub Boards Won', 'is_agent': False},
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Win-Loss Evaluation', 'is_agent': False},
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Random Agent', 'is_agent': True},
-
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'Choose First Action', 'is_agent': True},
         {'type': NodeType.EVALUATION_FUNCTION, 'name': 'HierarchicalAgent', 'is_agent': True},
 
         {'type': NodeType.SEARCH, 'name': 'MCTS', 'is_agent': True},
         {'type': NodeType.SEARCH, 'name': 'AlphaBeta', 'is_agent': False},
 
-        {'type': NodeType.RL, 'name': 'DQN', 'is_agent': True},
-        {'type': NodeType.RL, 'name': 'Reinforce', 'is_agent': True},
+        {'type': NodeType.RL, 'name': 'DQN', 'is_agent': False},
+        {'type': NodeType.RL, 'name': 'Reinforce', 'is_agent': False},
 
         {'type': NodeType.HYBRID, 'name': 'AB-AE', 'is_agent': True},
         {'type': NodeType.HYBRID, 'name': 'AB-PE', 'is_agent': True},
