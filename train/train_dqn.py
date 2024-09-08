@@ -31,6 +31,7 @@ def depth_2_training():
           train_every=5,
           )
 
+
 def depth_1_training():
     # env = tictactoe_v3.env(render_mode=None)
     # renderable_env = tictactoe_v3.env(render_mode='human')

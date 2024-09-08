@@ -33,13 +33,15 @@ class ProbabilisticEstimator(EvaluationFunction):
     def __init__(self, depth: int = 3, reduction_method: Literal['mean', 'probabilistic'] = 'probabilistic',
                  db_path: Union[Path, str] = UnbeatableClassicTTTAgent.DEFAULT_DB_PATH,
                  depth_zero_probability_estimations: dict = _DEFAULT_DEPTH_ZERO_PROBABILITY_ESTIMATIONS,
-                 *args, **kwargs) -> None:
+                 normalize: bool = True, *args, **kwargs) -> None:
         """
         :param depth: in each sub-board, at what depth to stop calculating (over 9 means iterate until board is full)
         :param reduction_method: how to reduce (aggregate) all the sub-boards probabilities. options:
             probabilistic: approximate the probability the win by approximating the probability for each winning streak
             mean: mean the probabilities over the boards
         :param db_path: db path for the unbeatable agent
+        :param depth_zero_probability_estimations: probability estimation hyperparameters
+        :param normalize: whether to normalize the score to [-1, 1] or not (useful for mcts)
         :param args: args for parent class
         :param kwargs: kwargs for parent class
         """
@@ -50,6 +52,7 @@ class ProbabilisticEstimator(EvaluationFunction):
         self.reduction_method = reduction_method
         self.cache = {}
         self.depth_zero_probability_estimations = depth_zero_probability_estimations
+        self.normalize = normalize
         self._cachable_prob_to_win_sub_board = self._make_cachable(self._prob_to_win_sub_board)
         self._cachable_main_eval = self._make_cachable(self._main_eval)
 
@@ -61,7 +64,10 @@ class ProbabilisticEstimator(EvaluationFunction):
 
         board = np.where(obs[..., 0], Piece.X.value, 0) + np.where(obs[..., 1], Piece.O.value, 0)
         prob_to_win, prob_to_lose = self._cachable_main_eval(board=board)
-        return prob_to_win - prob_to_lose
+        score = prob_to_win - prob_to_lose
+        if self.normalize:
+            score = max(min(score * 2.7, 1), -1)
+        return score
 
     def _main_eval(self, board: np.ndarray):
         if board.shape == (3, 3):  # base case
