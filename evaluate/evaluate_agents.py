@@ -1,10 +1,8 @@
-import os
+import re
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 from itertools import permutations
 from logging import Logger
-import datetime
-import argparse
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -12,13 +10,10 @@ import matplotlib
 from tqdm import tqdm
 from pettingzoo import AECEnv
 
-from policy_functions.reinforce_policy import ReinforcePolicy
-
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
-from environments import ultimate_ttt
-from utils.utils import get_action_mask, load_agent
+from utils.utils import get_action_mask
 from utils.logger import get_logger
 from agents.agent import Agent
 from agents.timed_agent_wrapper import TimedAgentWrapper
@@ -35,7 +30,8 @@ class AgentsEvaluator:
     """
     Class to evaluate agents' performance by playing multiple rounds of games
     """
-    def __init__(self, agents: List[Agent], env: AECEnv, logger: Logger = None, n_rounds: int = 1000):
+    def __init__(self, agents: List[Agent], env: AECEnv, logger: Logger = None, n_rounds: int = 1000,
+                 from_file: Union[Path, str] = None):
         """
         :param agents: list of agents to evaluate
         :param env: env to play in
@@ -61,6 +57,7 @@ class AgentsEvaluator:
         self.draws_as_player_1 = np.zeros((n_agents, n_agents), dtype=int)
         self.players_elo_rating = {agent: INITIAL_ELO_RATE for agent in self.agents}
         self.player_total_games = 2 * (len(self.agents) - 1) * self.n_rounds
+        self.from_file = from_file
 
     def play_single_game(self, players: Tuple[Agent, Agent]) -> Tuple[float, float]:
         """
@@ -125,30 +122,46 @@ class AgentsEvaluator:
         new_rating2 = rating2 + K * (score2 - expected_score2)
         return new_rating1, new_rating2
 
+    def _agent_str_to_agent(self, agent_str: str) -> Tuple[int, Union[Agent, TimedAgentWrapper]]:
+        for idx, agent in enumerate(self.agents):
+            if agent_str == str(agent):
+                return idx, agent
+        raise ValueError(f'Agent {agent_str} not found')
+
     def evaluate_agents(self) -> None:
         """
         Run games between the agents and assess their performance
         """
         n_agents = len(self.agents)
-        all_agent_pairs = list(permutations(range(n_agents), 2))
-        for _ in tqdm(range(self.n_rounds)):
-            for agent1_idx, agent2_idx in all_agent_pairs:
-                agent1, agent2 = self.agents[agent1_idx], self.agents[agent2_idx]
-                score1, score2 = self.play_single_game((agent1, agent2))
-                self.logger.debug(f'{agent1} vs {agent2}: {score1}-{score2}')
 
-                # update win count of each player
-                self.wins[agent1_idx, agent2_idx] += score1 == 1
-                self.wins[agent2_idx, agent1_idx] += score2 == 1
+        if self.from_file:
+            pattern = re.compile(r'DEBUG - (.+) vs (.+): ([\d.]{3})-([\d.]{3})')
+            n_games = 0
+            with open(self.from_file, 'r') as f:
+                for line in f:
+                    if ' vs ' not in line:
+                        continue
+                    n_games += 1
+                    match = pattern.search(line)
+                    agent1_str = match.group(1)
+                    agent2_str = match.group(2)
+                    score1 = float(match.group(3))
+                    score2 = float(match.group(4))
+                    agent1_idx, agent1 = self._agent_str_to_agent(agent1_str)
+                    agent2_idx, agent2 = self._agent_str_to_agent(agent2_str)
+                    self.update_stats(agent1_idx, agent2_idx, agent1, agent2, score1, score2)
+            actual_n_rounds = int(n_games / (len(self.agents) * (len(self.agents) - 1)))
+            assert actual_n_rounds == self.n_rounds, \
+                f'file is inconsistent with config. change n_rounds to {actual_n_rounds}'
 
-                self.wins_as_player_1[agent1_idx, agent2_idx] += score1 == 1
-                self.draws_as_player_1[agent1_idx, agent2_idx] += score1 == 0.5
-
-                # update elo ranting of each player
-                rate1, rate2 = self.players_elo_rating[agent1], self.players_elo_rating[agent2]
-                new_rate1, new_rate2 = self.calc_new_elo_rating(rate1, rate2, score1, score2)
-                self.players_elo_rating[agent1] = new_rate1
-                self.players_elo_rating[agent2] = new_rate2
+        else:
+            all_agent_pairs = list(permutations(range(n_agents), 2))
+            for _ in tqdm(range(self.n_rounds)):
+                for agent1_idx, agent2_idx in all_agent_pairs:
+                    agent1, agent2 = self.agents[agent1_idx], self.agents[agent2_idx]
+                    score1, score2 = self.play_single_game((agent1, agent2))
+                    self.logger.debug(f'{agent1} vs {agent2}: {score1}-{score2}')
+                    self.update_stats(agent1_idx, agent2_idx, agent1, agent2, score1, score2)
 
         player_draws = self.player_total_games - (self.wins.sum(axis=0) + self.wins.sum(axis=1))
         players_win_percentage = (self.wins.sum(axis=1) + 0.5 * player_draws) / self.player_total_games
@@ -175,18 +188,21 @@ class AgentsEvaluator:
             if hasattr(handler, 'baseFilename'):
                 return Path(handler.baseFilename).parent
 
-    def _set_plot_metadata_and_save(self, title: str, save_plot: bool, suptitle: str = None):
-        plt.title(title)
+    def _set_plot_metadata_and_save(self, title: str, save_plot: bool, suptitle: str = None, pad_title: int = None):
+        if pad_title is not None:
+            plt.title(title, pad=pad_title)
+        else:
+            plt.title(title)
         if suptitle is not None:
             plt.suptitle(suptitle, fontsize=14)
 
         if self.log_folder and save_plot:
             dst_path = self.log_folder / f'{title}.png'
-            plt.savefig(dst_path)
+            plt.savefig(dst_path, bbox_inches='tight')
             self.logger.info(f'Saved {dst_path} successfully')
 
     @staticmethod
-    def _plot_heatmap(df: pd.DataFrame, cmap: str, x_rotation: int = 15, fmt: str = "d"):
+    def _plot_heatmap(df: pd.DataFrame, cmap: str, x_rotation: int = 90, fmt: str = "d"):
         heatmap = sns.heatmap(df, annot=True, fmt=fmt, cmap=cmap, cbar=False)
         heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=x_rotation)
 
@@ -206,15 +222,15 @@ class AgentsEvaluator:
 
         # Visualizing the matrices using heatmaps
 
-        plt.figure(1, figsize=(13, 6))
+        plt.figure(1, figsize=(10, 8))
         self._plot_heatmap(wins_df, cmap="Blues")
         self._set_plot_metadata_and_save('Wins', save_plot=save_plot)
 
-        plt.figure(2, figsize=(13, 6))
+        plt.figure(2, figsize=(10, 8))
         self._plot_heatmap(losses_df, cmap="Reds")
         self._set_plot_metadata_and_save('Losses', save_plot=save_plot)
 
-        plt.figure(3, figsize=(13, 6))
+        plt.figure(3, figsize=(10, 8))
         self._plot_heatmap(losses_df, cmap="Greens")
         self._set_plot_metadata_and_save('Draws', save_plot=save_plot)
 
@@ -241,21 +257,21 @@ class AgentsEvaluator:
 
         wins_as_player_1_df = pd.DataFrame(self.wins_as_player_1, index=self.agents, columns=self.agents)
         draws_as_player_1_df = pd.DataFrame(self.draws_as_player_1, index=self.agents, columns=self.agents)
-        plt.figure(7, figsize=(13, 6))
+        plt.figure(7, figsize=(10, 8))
         self._plot_heatmap(wins_as_player_1_df, cmap="Purples")
         self._set_plot_metadata_and_save('Wins as X', save_plot=save_plot)
 
-        plt.figure(8, figsize=(13, 6))
+        plt.figure(8, figsize=(10, 8))
         wins_as_player_1_pct_df = wins_as_player_1_df / wins_df
         np.fill_diagonal(wins_as_player_1_pct_df.values, 0)
         self._plot_heatmap(wins_as_player_1_pct_df, fmt=".2f", cmap="Purples")
         self._set_plot_metadata_and_save('Wins as X (as % of all wins)', save_plot=save_plot)
 
-        plt.figure(9, figsize=(13, 6))
+        plt.figure(9, figsize=(10, 8))
         self._plot_heatmap(draws_as_player_1_df, cmap="Oranges")
         self._set_plot_metadata_and_save('Draws as X', save_plot=save_plot)
 
-        plt.figure(10, figsize=(13, 6))
+        plt.figure(10, figsize=(10, 8))
         draws_as_player_1_pct_df = draws_as_player_1_df / draws_df
         np.fill_diagonal(draws_as_player_1_pct_df.values, 0)
         self._plot_heatmap(draws_as_player_1_pct_df, fmt=".2f", cmap="Oranges")
@@ -275,7 +291,8 @@ class AgentsEvaluator:
         plt.figure(11, figsize=(6, 6))
         plt.pie(sizes, labels=labels, colors=colors,
                 autopct=lambda x: str(int(round(x / 100 * total_games))), startangle=140)
-        plt.title(f'Win by Piece (Total: {total_games} Games)', pad=20)
+        self._set_plot_metadata_and_save(f'Win by Piece (Total: {total_games} Games)',
+                                         save_plot=save_plot, pad_title=20)
 
         # ensures that pie is drawn as a circle.
         plt.axis('equal')
@@ -308,3 +325,18 @@ class AgentsEvaluator:
             )
 
         self._set_plot_metadata_and_save('Average Time Per Agent', save_plot=save_plot)
+
+    def update_stats(self, agent1_idx: int, agent2_idx: int, agent1: Union[TimedAgentWrapper, Agent],
+                     agent2: Union[TimedAgentWrapper, Agent], score1: float, score2: float) -> None:
+        # update win count of each player
+        self.wins[agent1_idx, agent2_idx] += score1 == 1
+        self.wins[agent2_idx, agent1_idx] += score2 == 1
+
+        self.wins_as_player_1[agent1_idx, agent2_idx] += score1 == 1
+        self.draws_as_player_1[agent1_idx, agent2_idx] += score1 == 0.5
+
+        # update elo ranting of each player
+        rate1, rate2 = self.players_elo_rating[agent1], self.players_elo_rating[agent2]
+        new_rate1, new_rate2 = self.calc_new_elo_rating(rate1, rate2, score1, score2)
+        self.players_elo_rating[agent1] = new_rate1
+        self.players_elo_rating[agent2] = new_rate2
