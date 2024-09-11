@@ -89,5 +89,5 @@ if __name__ == '__main__':
     os.makedirs('logs', exist_ok=True)
     logger_file_name = f"logs/evaluate_agents_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=True)
-    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=25)
+    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=50)
     agents_evaluator.evaluate_agents()

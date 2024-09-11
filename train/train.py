@@ -171,7 +171,6 @@ def train(env: AECEnv, agent: TrainableAgent,
         os.makedirs(folder_to_save, exist_ok=True)
 
     if logger is None:
-        # TODO: add logging folder to gitignore
         logger = get_logger(__name__, log_dir_name=folder_to_save, log_to_console=folder_to_save is None)
 
     agent.train()

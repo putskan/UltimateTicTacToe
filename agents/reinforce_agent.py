@@ -126,7 +126,6 @@ class ReinforceAgent(TrainableAgent):
         log_probs = self.get_action_log_probs(states, action_masks, actions)
 
         # Compute loss
-        # TODO: multiply by discount_factor ** t?
         loss = -log_probs * cumulative_rewards
         loss = loss.mean()
 

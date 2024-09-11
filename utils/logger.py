@@ -15,7 +15,7 @@ def get_logger(log_name: str, log_dir_name: Union[Path, str] = None, log_to_cons
     assert log_to_console or log_dir_name, 'Must provide at least one of log_to_console, log_dir_name'
     # Create a custom logger
     logger = logging.getLogger(f'{log_name}_logger')
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     # Avoid adding duplicate handlers if the logger is called multiple times
     if not logger.handlers:
@@ -25,7 +25,7 @@ def get_logger(log_name: str, log_dir_name: Union[Path, str] = None, log_to_cons
             os.makedirs(log_dir_name, exist_ok=True)
             log_file_name = os.path.join(log_dir_name, f'{log_name}.log')
             file_handler = logging.FileHandler(log_file_name, mode='w')
-            file_handler.setLevel(logging.INFO)
+            file_handler.setLevel(logging.DEBUG)
             # Create formatter and add it to the handlers
             file_handler.setFormatter(formatter)
             # Add file handler to the logger

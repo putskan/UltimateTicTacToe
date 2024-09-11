@@ -330,9 +330,7 @@ class MCTSAgent(Agent):
 
             elif self.eval_fn is not None and remaining_depth == 0:
                 curr_agent_idx = simulation_env.agent_selection
-                # TODO: check that observation and agent index are correct
                 val = self.eval_fn(simulation_env, obs, curr_agent_idx)
-                # TODO: do i need to invert_reward here?
                 return (val + 1) / 2
 
             # simulate next move randomly

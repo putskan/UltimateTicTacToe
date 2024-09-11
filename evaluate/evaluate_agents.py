@@ -57,6 +57,8 @@ class AgentsEvaluator:
         self.env = env
         self.logger = logger
         self.wins = np.zeros((n_agents, n_agents), dtype=int)
+        self.wins_as_player_1 = np.zeros((n_agents, n_agents), dtype=int)
+        self.draws_as_player_1 = np.zeros((n_agents, n_agents), dtype=int)
         self.players_elo_rating = {agent: INITIAL_ELO_RATE for agent in self.agents}
         self.player_total_games = 2 * (len(self.agents) - 1) * self.n_rounds
 
@@ -133,10 +135,14 @@ class AgentsEvaluator:
             for agent1_idx, agent2_idx in all_agent_pairs:
                 agent1, agent2 = self.agents[agent1_idx], self.agents[agent2_idx]
                 score1, score2 = self.play_single_game((agent1, agent2))
+                self.logger.debug(f'{agent1} vs {agent2}: {score1}-{score2}')
 
                 # update win count of each player
                 self.wins[agent1_idx, agent2_idx] += score1 == 1
                 self.wins[agent2_idx, agent1_idx] += score2 == 1
+
+                self.wins_as_player_1[agent1_idx, agent2_idx] += score1 == 1
+                self.draws_as_player_1[agent1_idx, agent2_idx] += score1 == 0.5
 
                 # update elo ranting of each player
                 rate1, rate2 = self.players_elo_rating[agent1], self.players_elo_rating[agent2]
@@ -158,9 +164,7 @@ class AgentsEvaluator:
         self.log_final_results("Winning Percentage", sorted_player_win_percentage, use_percentage=True)
         self.log_final_results("Elo Rating", sorted_elo_ratings)
         self.log_final_results("Average Time per Move (in seconds)", sorted_times)
-        self.plot_results()
-        self.plot_average_times(player_avg_time)
-        plt.show()
+        self.plot_results(player_avg_time)
 
     @property
     def log_folder(self):
@@ -181,10 +185,16 @@ class AgentsEvaluator:
             plt.savefig(dst_path)
             self.logger.info(f'Saved {dst_path} successfully')
 
-    def plot_results(self, save_plot: bool = True) -> None:
+    @staticmethod
+    def _plot_heatmap(df: pd.DataFrame, cmap: str, x_rotation: int = 15, fmt: str = "d"):
+        heatmap = sns.heatmap(df, annot=True, fmt=fmt, cmap=cmap, cbar=False)
+        heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=x_rotation)
+
+    def plot_results(self, player_avg_time: Dict[str, int], save_plot: bool = True) -> None:
         """
-        Plots the results as 3 heatmaps of wins, loses and draws.
+        Plot the results from the agent evaluation process
         Optionally also saves the plots to the logger's folder.
+        :param player_avg_time: the avg time for each player to make a move
         :param save_plot: whether to save the plot or not
         """
         draws = (2 * self.n_rounds) - (self.wins + self.wins.T)
@@ -197,21 +207,21 @@ class AgentsEvaluator:
         # Visualizing the matrices using heatmaps
 
         plt.figure(1, figsize=(13, 6))
-        sns.heatmap(wins_df, annot=True, fmt="d", cmap="Blues", cbar=False)
+        self._plot_heatmap(wins_df, cmap="Blues")
         self._set_plot_metadata_and_save('Wins', save_plot=save_plot)
 
         plt.figure(2, figsize=(13, 6))
-        sns.heatmap(losses_df, annot=True, fmt="d", cmap="Reds", cbar=False)
+        self._plot_heatmap(losses_df, cmap="Reds")
         self._set_plot_metadata_and_save('Losses', save_plot=save_plot)
 
         plt.figure(3, figsize=(13, 6))
-        sns.heatmap(draws_df, annot=True, fmt="d", cmap="Greens", cbar=False)
+        self._plot_heatmap(losses_df, cmap="Greens")
         self._set_plot_metadata_and_save('Draws', save_plot=save_plot)
 
         # bar plot for total scores
         plt.figure(4, figsize=(16, 6))
         total_scores = wins_df.sum(axis=1) + draws_df.sum(axis=1) * 0.5  # Wins + 0.5 * Draws
-        colors = sns.color_palette("rainbow", len(self.wins))
+        colors = sns.color_palette("crest", len(self.wins))
 
         total_scores.sort_values().plot(kind='barh', color=colors)
         plt.xlabel('Score')
@@ -227,7 +237,51 @@ class AgentsEvaluator:
         suptitle = f'Game Results Between Agents ({2 * self.n_rounds} Games per Pair)'
         self._set_plot_metadata_and_save('Elo Ratings by Agent', save_plot=save_plot, suptitle=suptitle)
 
-    def plot_average_times(self, agents_times: Dict[str, float], save_plot: bool = True) -> None:
+        self.plot_average_times(player_avg_time, figure_num=6)
+
+        wins_as_player_1_df = pd.DataFrame(self.wins_as_player_1, index=self.agents, columns=self.agents)
+        draws_as_player_1_df = pd.DataFrame(self.draws_as_player_1, index=self.agents, columns=self.agents)
+        plt.figure(7, figsize=(13, 6))
+        self._plot_heatmap(wins_as_player_1_df, cmap="Purples")
+        self._set_plot_metadata_and_save('Wins as X', save_plot=save_plot)
+
+        plt.figure(8, figsize=(13, 6))
+        wins_as_player_1_pct_df = wins_as_player_1_df / wins_df
+        np.fill_diagonal(wins_as_player_1_pct_df.values, 0)
+        self._plot_heatmap(wins_as_player_1_pct_df, fmt=".2f", cmap="Purples")
+        self._set_plot_metadata_and_save('Wins as X (as % of all wins)', save_plot=save_plot)
+
+        plt.figure(9, figsize=(13, 6))
+        self._plot_heatmap(draws_as_player_1_df, cmap="Oranges")
+        self._set_plot_metadata_and_save('Draws as X', save_plot=save_plot)
+
+        plt.figure(10, figsize=(13, 6))
+        draws_as_player_1_pct_df = draws_as_player_1_df / draws_df
+        np.fill_diagonal(draws_as_player_1_pct_df.values, 0)
+        self._plot_heatmap(draws_as_player_1_pct_df, fmt=".2f", cmap="Oranges")
+        self._set_plot_metadata_and_save('Draws as X (as % of all draws)', save_plot=save_plot)
+
+        games_x_won = wins_as_player_1_df.sum().sum()
+        games_o_won = wins_df.sum().sum() - games_x_won
+        games_drawn = draws_df.sum().sum() // 2
+        total_games = games_drawn + games_x_won + games_o_won
+        assert games_drawn + games_x_won + games_o_won == self.n_rounds * len(self.agents) * (len(self.agents) - 1)
+        assert draws_df.sum().sum() % 2 == 0
+
+        labels = ['X Won', 'O Won', 'Draws']
+        sizes = [games_x_won, games_o_won, games_drawn]
+        colors = sns.color_palette('pastel')[0:3]  # Choose a color palette from Seaborn
+        # Create the pie chart
+        plt.figure(11, figsize=(6, 6))
+        plt.pie(sizes, labels=labels, colors=colors,
+                autopct=lambda x: str(int(round(x / 100 * total_games))), startangle=140)
+        plt.title(f'Win by Piece (Total: {total_games} Games)', pad=20)
+
+        # ensures that pie is drawn as a circle.
+        plt.axis('equal')
+        plt.show()
+
+    def plot_average_times(self, agents_times: Dict[str, float], figure_num: int, save_plot: bool = True) -> None:
         """
         Plots the results as 3 heatmaps of wins, loses and draws.
         Optionally also saves the plots to the logger's folder.
@@ -237,11 +291,11 @@ class AgentsEvaluator:
         agents_times = pd.Series(agents_times).sort_values()
         palette = sns.color_palette("crest")
 
-        plt.figure(6, figsize=(13, 10))
+        plt.figure(figure_num, figsize=(13, 10))
         bars = plt.bar(agents_times.index, agents_times.values, color=palette)
         plt.ylabel('Average Time (seconds)')
         plt.gca().xaxis.set_ticks(agents_times.index)
-        plt.gca().set_xticklabels(agents_times.index, rotation=30, ha='right', fontsize=6)
+        plt.gca().set_xticklabels(agents_times.index, rotation=20, ha='right', fontsize=8)
 
         # Add the value labels on top of each bar
         for bar, value in zip(bars, agents_times.values):
@@ -254,43 +308,3 @@ class AgentsEvaluator:
             )
 
         self._set_plot_metadata_and_save('Average Time Per Agent', save_plot=save_plot)
-
-
-if __name__ == '__main__':
-    from agents.search_agents.alpha_beta import AlphaBeta
-    from agents.search_agents.mcts import MCTSAgent
-    from evaluation_functions.ae_winning_possibilities import AEWinningPossibilities
-    from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
-    from agents.choose_first_action_agent import ChooseFirstActionAgent
-    from agents.hierarchical_agent import HierarchicalAgent
-    from agents.random_agent import RandomAgent
-    from agents.reinforce_agent import ReinforceAgent
-    from agents.search_agents.alpha_beta import AlphaBeta
-    from agents.search_agents.mcts import MCTSAgent
-    from evaluation_functions.probabilistic_estimator import ProbabilisticEstimator
-    from policy_functions.policy_function import PolicyFunction
-    from pettingzoo.classic import tictactoe_v3
-
-    parser = argparse.ArgumentParser(description='Evaluate agents and log results')
-    parser.add_argument('--log-to-console', default=1, type=int, choices=(0, 1))
-    args = parser.parse_args()
-
-    env = ultimate_ttt.env(render_mode=None, depth=1)  # 'human', 'rgb_array', 'ansi', None
-    # reinforce_agent: ReinforceAgent = load_agent("../../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
-    # reinforce_agent: ReinforceAgent = load_agent(
-    #     "../train/logs/ReinforceAgent/2024-09-04_12-56-44/checkpoint_15000.pickle")
-    # dqn_agent: DQNAgent = load_agent('../train/logs/DQNAgent/2024-08-31_11-06-41/checkpoint_9.pickle')
-    # agents = [
-    #     HierarchicalAgent(),
-    #     RandomAgent(),
-    #     # MCTSAgent(),
-    #     # AlphaBeta(2, AEWinningPossibilities()),
-    #     AlphaBeta(2, ProbabilisticEstimator()),
-    # ]
-    # mcts_agent = MCTSAgent(policy_function=ReinforcePolicy(reinforce_agent), n_iter_min=20)
-    agents = [HierarchicalAgent(), RandomAgent()]
-    os.makedirs('logs', exist_ok=True)
-    logger_file_name = f"logs/evaluate_agents_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    logger = get_logger("evaluate_agents", logger_file_name, log_to_console=args.log_to_console)
-    agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=50)
-    agents_evaluator.evaluate_agents()
