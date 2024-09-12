@@ -56,5 +56,5 @@ def play(env: AECEnv, players: List[Agent], n_games: int = 1000, seed: int = 42)
 
 if __name__ == '__main__':
     players = [HierarchicalAgent(), RandomAgent()]
-    env = ultimate_ttt.env(render_mode='human', depth=2)  # 'human'
+    env = ultimate_ttt.env(render_mode='human', depth=2)
     play(env, players, n_games=1)
