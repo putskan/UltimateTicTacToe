@@ -6,7 +6,7 @@
 3. Install requirements specified in `requirements.txt`.
 
 ### Troubleshooting
-* If using Windows, consider cloning the repository using `git clone -c core.protectNTFS=false <repo>`
+* If clone fails using Windows, consider cloning the repository using `git clone -c core.protectNTFS=false <repo>`.
 * If encountering `ModuleNotFoundError: No module named 'distutils'`, consult this [stackoverflow answer](https://stackoverflow.com/a/76691103/14984947) and re-install the requirements.
 
 ## Example usage
