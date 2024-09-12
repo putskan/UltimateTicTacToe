@@ -1,10 +1,12 @@
 # UltimateTTT
+![Simulator](Library%20_%20Loom%20-%2010%20September%202024%20(online-video-cutter.com).gif)
 ## Installation
 1. Make sure you have `Python 3.11` or above in your system.
 2. Create a virtual environment with `Python 3.11` or above.
 3. Install requirements specified in `requirements.txt`.
 
 ### Troubleshooting
+* If using Windows, consider cloning the repository using `git clone -c core.protectNTFS=false <repo>`
 * If encountering `ModuleNotFoundError: No module named 'distutils'`, consult this [stackoverflow answer](https://stackoverflow.com/a/76691103/14984947) and re-install the requirements.
 
 ## Example usage
