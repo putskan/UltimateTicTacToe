@@ -4,6 +4,9 @@
 2. Create a virtual environment with `Python 3.11` or above.
 3. Install requirements specified in `requirements.txt`.
 
+### Troubleshooting
+* If encountering `ModuleNotFoundError: No module named 'distutils'`, consult this [stackoverflow answer](https://stackoverflow.com/a/76691103/14984947) and re-install the requirements.
+
 ## Example usage
 * In order to watch a game between two agents, run `evaluate/example_usage.py`.
 * Feel free playing with the `depth` parameter to get a grasp of the N-depth-TTT version.
