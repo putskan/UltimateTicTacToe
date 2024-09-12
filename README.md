@@ -1,5 +1,5 @@
 # UltimateTTT
-![Simulator](Library%20_%20Loom%20-%2010%20September%202024%20(online-video-cutter.com).gif)
+![Simulator](ultimate_ttt_simulation.gif)
 ## Installation
 1. Make sure you have `Python 3.11` or above in your system.
 2. Create a virtual environment with `Python 3.11` or above.
