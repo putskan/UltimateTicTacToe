@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib
+import matplotlib.pyplot as plt
+
 from tqdm import tqdm
 from pettingzoo import AECEnv
 
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 
 from utils.utils import get_action_mask
 from utils.logger import get_logger
