@@ -1,7 +1,7 @@
 # UltimateTTT
 ## Installations
-1. Install `Python 3.11` or above.
-2. Create a virtual environment.
+1. Make sure you have `Python 3.11` or above in your system.
+2. Create a virtual environment with `Python 3.11` or above.
 3. Install requirements as in `requirements.txt`.
 
 ## Evaluating Agents
