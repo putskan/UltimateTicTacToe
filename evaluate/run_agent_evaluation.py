@@ -1,4 +1,9 @@
 import os
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(os.path.dirname(__file__)).parent))
+
 from datetime import datetime
 
 from agents.dqn_agent import DQNAgent
@@ -24,9 +29,10 @@ if __name__ == '__main__':
     """
     Run evaluation over the different agents
     """
+    base_folder = Path(os.path.dirname(__file__)).parent
     env = ultimate_ttt.env(render_mode=None, depth=2)
-    reinforce_agent: ReinforceAgent = load_agent("../agents/trained_agents/reinforce/checkpoint_86000.pickle")
-    dqn_agent: DQNAgent = load_agent("../agents/trained_agents/dqn/checkpoint_65000.pickle")
+    reinforce_agent: ReinforceAgent = load_agent(base_folder / "agents/trained_agents/reinforce/checkpoint_86000.pickle")
+    dqn_agent: DQNAgent = load_agent(base_folder / "agents/trained_agents/dqn/checkpoint_65000.pickle")
 
     ab_ae_agent = AlphaBeta(depth=2, evaluation_function=AEWinningPossibilities(),
                             shuffle_move_order=True,
@@ -87,7 +93,7 @@ if __name__ == '__main__':
     ]
 
     os.makedirs('logs', exist_ok=True)
-    logger_file_name = f"logs/evaluate_agents_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    logger_file_name = base_folder / f"logs/evaluate_agents_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     logger = get_logger("evaluate_agents", logger_file_name, log_to_console=True)
     agents_evaluator = AgentsEvaluator(agents, env, logger=logger, n_rounds=50)
     agents_evaluator.evaluate_agents()
