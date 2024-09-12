@@ -231,7 +231,7 @@ class AgentsEvaluator:
         self._set_plot_metadata_and_save('Losses', save_plot=save_plot)
 
         plt.figure(3, figsize=(10, 8))
-        self._plot_heatmap(losses_df, cmap="Greens")
+        self._plot_heatmap(draws_df, cmap="Greens")
         self._set_plot_metadata_and_save('Draws', save_plot=save_plot)
 
         # bar plot for total scores
