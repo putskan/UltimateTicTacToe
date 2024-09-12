@@ -3,7 +3,6 @@ import datetime
 import logging
 import os
 import random
-import shutil
 from collections import deque
 from pathlib import Path
 from typing import List, Dict, Union
@@ -13,17 +12,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from pettingzoo import AECEnv
-from pettingzoo.classic import tictactoe_v3
 from tqdm import tqdm
 
-import agents
 from agents.agent import Agent
 from agents.choose_first_action_agent import ChooseFirstActionAgent
-from agents.hierarchical_agent import HierarchicalAgent
-from agents.random_agent import RandomAgent
 from agents.trainable_agent import TrainableAgent
-from agents.dqn_agent import DQNAgent
-from models.dqn import DQN, PrevDQN, DuelingDQN
 from utils.logger import get_logger
 
 from utils.replay_buffer import ReplayBuffer
@@ -264,34 +257,3 @@ def train(env: AECEnv, agent: TrainableAgent,
     if losses:
         plot_loss(losses, folder_to_save / 'loss.png')
     env.close()
-
-
-if __name__ == '__main__':
-    # # DQN training
-    # # env = ultimate_ttt.env(render_mode='human', depth=2, render_fps=10)
-    # env = tictactoe_v3.env(render_mode=None)
-    # renderable_env = tictactoe_v3.env(render_mode='human')
-    # env.reset()
-    # state_size = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
-    # action_size = env.action_space(env.agents[0]).n
-    # agent = DQNAgent(state_size=state_size, action_size=action_size)
-    # train(env, agent, n_games=100_000, render_every=20_000, renderable_env=renderable_env)
-
-    # REINFORCE training
-    from agents.reinforce_agent import ReinforceAgent
-    from environments import ultimate_ttt
-    import numpy as np
-    env = ultimate_ttt.env(render_mode=None, depth=1)
-    renderable_env = None  # ultimate_ttt.env(render_mode='human', depth=1)
-    env.reset()
-    state_shape = env.unwrapped.observation_spaces[env.agents[0]].spaces['observation'].shape
-    state_size = np.prod(state_shape)
-    hidden_size = 64
-    batch_size = 10
-    action_size = env.action_space(env.agents[0]).n
-    agent = ReinforceAgent(state_size=state_size, action_size=action_size,
-                           agent_name=f"ReinforceAgent_depth1_games1e5_hidden{hidden_size}_batch10",
-                           hidden_size=hidden_size, batch_size=10)
-    folder = Path(__file__).resolve().parent / 'trained_agents'
-    train(env, agent, folder, n_games=100_000, render_every=10_000,
-          renderable_env=renderable_env, save_checkpoint_every=10_000)

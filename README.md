@@ -4,7 +4,9 @@
 2. Create a virtual environment with `Python 3.11` or above.
 3. Install requirements specified in `requirements.txt`.
 
+## Example usage
+In order to watch a game between two agents, run `evaluate/example_usage.py`.
+
 ## Evaluating Agents
-* In order to evaluate the different agents, run `run_agent_evaluation.py`.
-* Feel free to decrease the `n_rounds` parameter, alter the agent list etc.
-* In order to visuallize games, change `render_mode` parameter to `'human'` (as in other standard PettingZoo environments).
+* In order to evaluate the different agents, and reproduce our plots, run `run_agent_evaluation.py`.
+* Note this takes a while, so feel free to decrease the `n_rounds` parameter, alter the agent list etc.

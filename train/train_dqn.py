@@ -1,11 +1,6 @@
-import datetime
-
-from pettingzoo.classic import tictactoe_v3
-
 from agents.dqn_agent import DQNAgent
 from environments import ultimate_ttt
 from train import train
-from utils.utils import load_agent
 
 
 def depth_2_training():
@@ -33,9 +28,6 @@ def depth_2_training():
 
 
 def depth_1_training():
-    # env = tictactoe_v3.env(render_mode=None)
-    # renderable_env = tictactoe_v3.env(render_mode='human')
-
     env = ultimate_ttt.env(render_mode=None, depth=1)
     renderable_env = ultimate_ttt.env(render_mode='human', depth=1, render_fps=2)
     env.reset()
