@@ -1,3 +1,9 @@
+import os
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(os.path.dirname(__file__)).parent))
+
 from typing import List
 
 import numpy as np
